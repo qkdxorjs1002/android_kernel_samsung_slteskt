@@ -105,6 +105,17 @@ struct mc_ioctl_reg_wsm {
 };
 
 /*
+ * Data exchange structure of the MC_DRV_MODULE_FC_EXECUTE ioctl command.
+ * internal, unsupported
+ */
+struct mc_ioctl_execute {
+	/* base address of mobicore binary */
+	uint32_t phys_start_addr;
+	/* length of DDR area */
+	uint32_t length;
+};
+
+/*
  * Data exchange structure of the MC_IO_RESOLVE_CONT_WSM ioctl command.
  */
 struct mc_ioctl_resolv_cont_wsm {
@@ -171,6 +182,7 @@ struct mc_ioctl_resolv_wsm {
 #define MC_IO_UNREG_WSM		_IO(MC_IOC_MAGIC, 7)
 #define MC_IO_LOCK_WSM		_IO(MC_IOC_MAGIC, 8)
 #define MC_IO_UNLOCK_WSM	_IO(MC_IOC_MAGIC, 9)
+#define MC_IO_EXECUTE		_IOWR(MC_IOC_MAGIC, 10, struct mc_ioctl_execute)
 
 /*
  * Allocate contiguous memory for a process for later mapping with mmap.
