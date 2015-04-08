@@ -190,9 +190,13 @@ static bool check_link_status(struct mem_link_device *mld)
 
 static void pm_fail_cb(struct modem_link_pm *pm)
 {
+#ifdef CONFIG_SAMSUNG_PRODUCT_SHIP
 	struct link_device *ld = pm_to_link_device(pm);
 	struct mem_link_device *mld = ld_to_mem_link_device(ld);
 	mem_forced_cp_crash(mld);
+#else
+	panic("%s: PM_STATE_FAIL : irq handling delayed..\n", pm->link_name);
+#endif
 }
 
 static void pm_cp_fail_cb(struct modem_link_pm *pm)

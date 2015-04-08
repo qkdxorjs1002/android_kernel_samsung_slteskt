@@ -122,8 +122,8 @@
 			modem-name = "ss300";
 			modems {
 				ss300 {
-					/* initial-gear is HS-G2 */
-					init-gear = <2 2 1>;
+					/* initial-gear is HS-G1 */
+					init-gear = <2 1 1>;
 					/* use shared reference clock for MPHY */
 					shd-refclk = <1>;
 				};

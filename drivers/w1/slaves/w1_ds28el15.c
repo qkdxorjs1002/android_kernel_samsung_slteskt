@@ -139,7 +139,7 @@ static u8 init_verify = 1;
  * 'enable'      - '1' to enable special mode or '0' to clear
  */
 
-void set_special_mode(int enable, unchar *values)
+void set_special_mode(int enable, uchar *values)
 {
 	special_mode = enable;
 	special_values[0] = values[0];
@@ -229,9 +229,9 @@ int calculate_write_authMAC256(int page, int segment, char *new_data,
  *               else - Failed to write block (no presence or invalid CRC16)
  */
 int w1_ds28el15_write_block(struct w1_slave *sl, int page, int seg,
-				unchar *data, int contflag)
+				uchar *data, int contflag)
 {
-	unchar buf[256], cs;
+	uchar buf[256], cs;
 	int cnt, i, offset;
 	int length = 4;
 
@@ -323,10 +323,10 @@ int w1_ds28el15_write_block(struct w1_slave *sl, int page, int seg,
  *               else - Failed to write block (no presence or invalid CRC16)
  */
 int w1_ds28el15_write_memory(struct w1_slave *sl, int seg, int page,
-				unchar *data, int length)
+				uchar *data, int length)
 {
-	unchar buf[256];
-	unchar cs = 0;
+	uchar buf[256];
+	uchar cs = 0;
 	int i;
 
 	if (!sl)
@@ -374,10 +374,10 @@ int w1_ds28el15_write_memory(struct w1_slave *sl, int seg, int page,
  *           else - Failed to write block (no presence or invalid CRC16)
  */
 int w1_ds28el15_write_authblock(struct w1_slave *sl, int page, int segment,
-					unchar *data, int contflag)
+					uchar *data, int contflag)
 {
-	unchar buf[256], cs;
-	unchar new_data[4], old_data[4], manid[2];
+	uchar buf[256], cs;
+	uchar new_data[4], old_data[4], manid[2];
 	int cnt, i, offset;
 
 	cnt = 0;
@@ -509,9 +509,9 @@ int w1_ds28el15_write_authblock(struct w1_slave *sl, int page, int segment,
  *               else - Failed to write block (no presence or invalid CRC16)
  */
 int w1_ds28el15_write_authblockMAC(struct w1_slave *sl, int page,
-				int segment, unchar *new_data, unchar *mac)
+				int segment, uchar *new_data, uchar *mac)
 {
-	unchar buf[256], cs;
+	uchar buf[256], cs;
 	int cnt, i, offset;
 
 	cnt = 0;
@@ -624,9 +624,9 @@ int w1_ds28el15_write_authblockMAC(struct w1_slave *sl, int page,
  *	0    - block read and verified CRC
  *	else - Failed to write block (no presence or invalid CRC16)
  */
-int w1_ds28el15_read_memory_check(struct w1_slave *sl, int seg, int page, unchar *rdbuf, int length)
+int w1_ds28el15_read_memory_check(struct w1_slave *sl, int seg, int page, uchar *rdbuf, int length)
 {
-	unchar buf[256];
+	uchar buf[256];
 	int cnt, i, offset;
 
 	cnt = 0;
@@ -696,9 +696,9 @@ int w1_ds28el15_read_memory_check(struct w1_slave *sl, int seg, int page, unchar
  *           else - Failed to write block (no presence or invalid CRC16)
  */
 int w1_ds28el15_read_memory(struct w1_slave *sl, int seg,
-				int page, unchar *rdbuf, int length)
+				int page, uchar *rdbuf, int length)
 {
-	unchar buf[256];
+	uchar buf[256];
 	int cnt, i, offset;
 
 	cnt = 0;
@@ -765,7 +765,7 @@ int w1_ds28el15_read_memory(struct w1_slave *sl, int seg,
  *  Returns: 0 - block read and verified CRC
  *               else - Failed to write block (no presence or invalid CRC16)
  */
-int w1_ds28el15_read_page(struct w1_slave *sl, int page, unchar *rdbuf)
+int w1_ds28el15_read_page(struct w1_slave *sl, int page, uchar *rdbuf)
 {
 	return w1_ds28el15_read_memory(sl, 0, page, rdbuf, 32);
 }
@@ -778,9 +778,9 @@ int w1_ds28el15_read_page(struct w1_slave *sl, int page, unchar *rdbuf)
  * Return: 0 - select complete
  *             else - error during select, device not present
  */
-int w1_ds28el15_read_scratchpad(struct w1_slave *sl, unchar *rdbuf)
+int w1_ds28el15_read_scratchpad(struct w1_slave *sl, uchar *rdbuf)
 {
-	unchar buf[256];
+	uchar buf[256];
 	int cnt = 0, i, offset;
 
 	if (!sl)
@@ -836,9 +836,9 @@ int w1_ds28el15_read_scratchpad(struct w1_slave *sl, unchar *rdbuf)
  * Return: 0 - select complete
  *             else - error during select, device not present
  */
-int w1_ds28el15_write_scratchpad(struct w1_slave *sl, unchar *data)
+int w1_ds28el15_write_scratchpad(struct w1_slave *sl, uchar *data)
 {
-	unchar buf[256];
+	uchar buf[256];
 	int cnt = 0, i, offset;
 
 	if (!sl)
@@ -906,7 +906,7 @@ int w1_ds28el15_write_scratchpad(struct w1_slave *sl, unchar *data)
  */
 int w1_ds28el15_load_secret(struct w1_slave *sl, int lock)
 {
-	unchar buf[256], cs;
+	uchar buf[256], cs;
 	int cnt = 0, i;
 
 	if (!sl)
@@ -971,7 +971,7 @@ int w1_ds28el15_load_secret(struct w1_slave *sl, int lock)
  */
 int w1_ds28el15_compute_secret(struct w1_slave *sl, int pbyte)
 {
-	unchar buf[256], cs;
+	uchar buf[256], cs;
 	int cnt = 0, i;
 	int page_num, lock;
 
@@ -1040,9 +1040,9 @@ int w1_ds28el15_compute_secret(struct w1_slave *sl, int pbyte)
  *  Returns: 0 - page read has correct MAC
  *           else - Failed to read page or incorrect MAC
  */
-int w1_ds28el15_compute_read_pageMAC(struct w1_slave *sl, int pbyte, unchar *mac)
+int w1_ds28el15_compute_read_pageMAC(struct w1_slave *sl, int pbyte, uchar *mac)
 {
-	unchar buf[256], cs;
+	uchar buf[256], cs;
 	int cnt = 0, i;
 
 	if (!sl)
@@ -1126,11 +1126,11 @@ int w1_ds28el15_compute_read_pageMAC(struct w1_slave *sl, int pbyte, unchar *mac
  *               else - Failed to read page or incorrect MAC
  */
 int w1_ds28el15_read_authverify(struct w1_slave *sl, int page_num,
-	unchar *challenge, unchar *page_data, unchar *manid,
+	uchar *challenge, uchar *page_data, uchar *manid,
 	int skipread, int anon)
 {
-	unchar mac[32];
-	unchar mt[128];
+	uchar mac[32];
+	uchar mt[128];
 	int pbyte;
 	int i = 0, rslt;
 
@@ -1242,9 +1242,9 @@ int w1_ds28el15_read_authverify(struct w1_slave *sl, int page_num,
  *	     else - Failed to read page or incorrect MAC
  */
 int w1_ds28el15_authverify(struct w1_slave *sl, int page_num,
-	unchar *challenge, unchar *page_data, unchar *manid, unchar *mac, int anon)
+	uchar *challenge, uchar *page_data, uchar *manid, uchar *mac, int anon)
 {
-	unchar mt[128];
+	uchar mt[128];
 
 	/* create buffer to compute and verify mac */
 
@@ -1295,9 +1295,9 @@ int w1_ds28el15_authverify(struct w1_slave *sl, int page_num,
  *  Returns: 0 - status read
  *           else - Failed to read status
  */
-int w1_ds28el15_read_status(struct w1_slave *sl, int pbyte, unchar *rdbuf)
+int w1_ds28el15_read_status(struct w1_slave *sl, int pbyte, uchar *rdbuf)
 {
-	unchar buf[256];
+	uchar buf[256];
 	int cnt, i, offset, rdnum;
 	int personality, allpages, block_num;
 
@@ -1375,9 +1375,9 @@ int w1_ds28el15_read_status(struct w1_slave *sl, int pbyte, unchar *rdbuf)
  *  Returns: 0 - protection written
  *               else - Failed to set protection
  */
-int w1_ds28el15_write_blockprotection(struct w1_slave *sl, unchar prot)
+int w1_ds28el15_write_blockprotection(struct w1_slave *sl, uchar prot)
 {
-	unchar buf[256], cs;
+	uchar buf[256], cs;
 	int cnt = 0, i;
 
 	if (!sl)
@@ -1434,12 +1434,12 @@ int w1_ds28el15_write_blockprotection(struct w1_slave *sl, unchar prot)
  *  Returns: 0 - protection written
  *           else - Failed to set protection
  */
-int w1_ds28el15_write_authblockprotection(struct w1_slave *sl, unchar *data)
+int w1_ds28el15_write_authblockprotection(struct w1_slave *sl, uchar *data)
 {
-	unchar buf[256], cs, mt[64];
+	uchar buf[256], cs, mt[64];
 	int cnt = 0, i;
 	int new_value, old_value;
-	unchar manid[2];
+	uchar manid[2];
 
 	if (!sl)
 		return -ENODEV;
@@ -1613,9 +1613,9 @@ static void parse_dt_array(void)
 int w1_ds28el15_verifymac(struct w1_slave *sl)
 {
 	int rslt, rt;
-	unchar buf[256], challenge[32], manid[2];
-	unchar memimage[512];
-	unchar master_secret[32];
+	uchar buf[256], challenge[32], manid[2];
+	uchar memimage[512];
+	uchar master_secret[32];
 	int i = 0;
 
 	/* copy the secret code */
@@ -1684,9 +1684,9 @@ success:
 static int w1_ds28el15_setup_device(struct w1_slave *sl)
 {
 	int rslt, rt;
-	unchar buf[256], challenge[32], manid[2];
-	unchar memimage[512];
-	unchar master_secret[32];
+	uchar buf[256], challenge[32], manid[2];
+	uchar memimage[512];
+	uchar master_secret[32];
 
 	/* hard code master secret */
 	memcpy(master_secret, w1_array, 32);
@@ -1743,9 +1743,9 @@ static int w1_ds28el15_setup_device(struct w1_slave *sl)
 static int w1_ds28el15_application(struct w1_slave *sl)
 {
 	int i, rslt, rt;
-	unchar buf[256], challenge[32], manid[2], new_page[32];
-	unchar memimage[512];
-	unchar master_secret[32];
+	uchar buf[256], challenge[32], manid[2], new_page[32];
+	uchar memimage[512];
+	uchar master_secret[32];
 
 	/* ----- DS28EL25/DS28EL22/DS28EL15 Application Example */
 	printk(KERN_ERR "\n-------- DS28EL15 Application Example\n");
@@ -1934,7 +1934,7 @@ static ssize_t w1_ds28el15_verify_mac(struct device *device,
 	return sprintf(buf, "%d\n", result);
 }
 
-static int w1_ds28el15_get_buffer(struct w1_slave *sl, unchar *rdbuf, int retry_limit)
+static int w1_ds28el15_get_buffer(struct w1_slave *sl, uchar *rdbuf, int retry_limit)
 {
 	int ret = -1, retry = 0;
 
@@ -1955,7 +1955,7 @@ static const int sn_cdigit[19] = {
         0x14, 0x15, 0x19, 0x16, 0x17,
         0x20, 0x1b, 0x1d, 0x11};
 
-static bool w1_ds28el15_check_digit(const unchar *sn)
+static bool w1_ds28el15_check_digit(const uchar *sn)
 {
 	int i, tmp1 = 0, tmp2 = 0;
 	int cdigit = sn[3];
@@ -1979,7 +1979,7 @@ static bool w1_ds28el15_check_digit(const unchar *sn)
 		return false;
 }
 
-static unchar w1_ds28el15_char_convert(unchar c)
+static uchar w1_ds28el15_char_convert(uchar c)
 {
 	char ctable[36] = {
 	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
@@ -1990,7 +1990,7 @@ static unchar w1_ds28el15_char_convert(unchar c)
 	return ctable[c];
 }
 
-static void w1_ds28el15_slave_sn(const unchar *rdbuf)
+static void w1_ds28el15_slave_sn(const uchar *rdbuf)
 {
 	int i;
 	u8 sn[15];

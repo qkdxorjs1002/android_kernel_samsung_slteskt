@@ -105,9 +105,14 @@
 		ciu_clkin = <25 50 50 100 200 100 200 400>;
 		tp_mon_depth = <3>;
 						/* Byte/s,	 MIF clk, CPU clk, KFC clk*/
-		tp_mon_table = <18000000 825000	2000000 1500000
-						12000000 413000	0	0
+		tp_mon_table = <0 0	0 0
+						0 0	0	0
 						0	 0	0	0>;
+/*
+		tp_mon_table = <18000000 825000	2000000 1500000
+				12000000 413000	0	0
+				0	 0	0	0>;
+*/
 		pinctrl-names = "default";
 		//pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_bus1 &sd1_bus4>;
 		pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_bus1 &sd1_bus4 &cfg_wlanen &cfg_wlanhostwake>; /* Set WLAN_EN configuration of power down mode */
@@ -1195,6 +1200,13 @@
 			/* <Throughput(Mbps) ARM_min ARM_max KFC_min KFC_max MIF INT Task Irq> */
 			 net_boost,table= <64 0 0 1300000 0 825000 0 0 0>;
 		 };
+		 boot_device@3 {
+			net_boost,label="WIFI";
+			net_boost,node="wlan0";
+			net_boost,table_size = <1>;
+			/* <Throughput ARM_min ARM_max KFC_min KFC_max MIF INT Task Irq> */
+			net_boost,table= <60 1600000 0 1100000 0 825000 200000 1 1 >;
+		};
 	};
 
 	fimg2d_pdata {

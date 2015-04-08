@@ -1730,7 +1730,7 @@ static int lkmauth(Elf_Ehdr * hdr, int len)
 		goto lkmauth_ret;	/* leave the function now. */
 	}
 
-	/* Generate the request cmd to verify hash of ko.
+	/* Generate the request cmd to verify hash of ko. 
 	 */
 	kreq = (struct lkmauth_req_s *)qhandle->sbuf;
 	kreq->cmd_id = LKMAUTH_CMD_AUTH;
@@ -1764,8 +1764,8 @@ static int lkmauth(Elf_Ehdr * hdr, int len)
 		pr_warn("TIMA: lkmauth--shutting down the tzapp.\n");
 		qsee_ret = qseecom_shutdown_app(&qhandle);
 		if (qsee_ret) {
-			/* Failed to shut down the lkmauth tzapp. What will happen to
-			 * the qhandle in this case? Can it be used for the next lkmauth
+			/* Failed to shut down the lkmauth tzapp. What will happen to 
+			 * the qhandle in this case? Can it be used for the next lkmauth 
 			 * invocation?
 			 */
 			pr_err
@@ -1786,8 +1786,8 @@ static int lkmauth(Elf_Ehdr * hdr, int len)
 		pr_err("TIMA: lkmauth--verification failed %d\n", krsp->ret);
 		ret = -1;
 
-		/* Send a notification through uevent. Note that the lkmauth tzapp
-		 * should have already raised an alert in TZ Security log.
+		/* Send a notification through uevent. Note that the lkmauth tzapp 
+		 * should have already raised an alert in TZ Security log. 
 		 */
 		status = kzalloc(16, GFP_KERNEL);
 		if (!status) {

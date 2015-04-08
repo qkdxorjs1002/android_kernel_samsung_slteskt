@@ -18,12 +18,11 @@
 		mif,name = "ss300";
 		mif,modem_net = <0>;
 		mif,modem_type = <8>;
-		mif,modem_attr = <0x01>;	/* LEGACY_COMMAND */
-		mif,link_types = <0x400>;	/* LINKDEV_LLI */
-		mif,link_name = "lli";
-		mif,link_attrs = <0x39>;	/* MEM_DUMP | MEM_BOOT | MEM_IPC | SBD_IPC */
 		mif,use_handover = <0>;
 		mif,ipc_version = <50>;
+		mif,link_types = <0x400>;	/* LINKDEV_LLI */
+		mif,link_name = "lli";
+		mif,link_attrs = <0x3C9>;	/* DUMP_ALIGNED (0x200) | BOOT_ALIGNED (0x100) | MEM_DUMP (0x80) | MEM_BOOT (0x40) | DPRAM_MAGIC (0x08) | SBD_IPC (0x01) */
 
 		mif,num_iodevs = <13>;
 		iodevs {

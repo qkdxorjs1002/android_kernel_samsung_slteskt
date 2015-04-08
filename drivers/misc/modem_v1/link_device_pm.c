@@ -349,11 +349,7 @@ static inline void check_pm_fail(struct modem_link_pm *pm,
 
 	switch (n_state) {
 	case PM_STATE_WDOG_TIMEOUT:
-#ifdef CONFIG_SAMSUNG_PRODUCT_SHIP
 		handle_wdog_timeout(pm);
-#else
-		panic("%s: PM_STATE_FAIL : irq handling delayed..\n", pm->link_name);
-#endif
 		break;
 
 	case PM_STATE_CP_FAIL:
@@ -361,7 +357,11 @@ static inline void check_pm_fail(struct modem_link_pm *pm,
 		break;
 
 	case PM_STATE_AP_FAIL:
+#ifdef CONFIG_SAMSUNG_PRODUCT_SHIP
+		handle_cp_fail(pm);
+#else
 		panic("%s: PM_STATE_AP_FAIL\n", pm->link_name);
+#endif
 		break;
 
 	default:
@@ -488,11 +488,7 @@ static void run_pm_fsm(struct modem_link_pm *pm, enum pm_event event)
 		} else if (event == PM_EVENT_WDOG_TIMEOUT) {
 			n_state = PM_STATE_WDOG_TIMEOUT;
 		} else if (event == PM_EVENT_CP2AP_WAKEUP_LOW) {
-#ifdef CONFIG_SAMSUNG_PRODUCT_SHIP
-			n_state = PM_STATE_CP_FAIL;
-#else
 			n_state = PM_STATE_AP_FAIL;
-#endif
 		}
 		break;
 
