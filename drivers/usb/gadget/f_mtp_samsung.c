@@ -105,7 +105,7 @@
 
 #define INTR_BUFFER_SIZE           28
 
-#define DRIVER_NAME		 "mtp_usb"
+#define DRIVER_NAME		 "usb_mtp_gadget"
 
 static const char mtpg_longname[] =	"mtp";
 static const char shortname[] = DRIVER_NAME;
