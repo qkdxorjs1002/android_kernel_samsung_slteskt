@@ -1,6 +1,6 @@
 ##!/bin/bash
-
+CM_PATH=~/cm/prebuilts/gcc/darwin-x86/arm/arm-eabi-4.8
 export ARCH=arm
-export CROSS_COMPILE=/opt/toolchains/arm-eabi-4.6/bin/arm-eabi-
-make slteskt_04_defconfig
-make
+export CROSS_COMPILE=$(CM_PATH)/bin/arm-eabi-
+make cm_exynos5430-slteskt_defconfig
+make -j10
