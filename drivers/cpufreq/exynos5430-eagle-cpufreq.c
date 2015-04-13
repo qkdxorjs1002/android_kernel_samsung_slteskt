@@ -373,12 +373,12 @@ static int exynos5430_bus_table_CA15[CPUFREQ_LEVEL_END_CA15] = {
 	543000,		/* 1.2 GHz */
 	413000,		/* 1.1 GHz */
 	413000,		/* 1.0 GHz */
-	0,		/* 900 MHz */
-	0,		/* 800 MHz */
-	0,		/* 700 MHz */
-	0,		/* 600 MHz */
-	0,		/* 500 MHz */
-	0,		/* 400 MHz */
+	413000,		/* 900 MHz */
+	413000,		/* 800 MHz */
+	413000,		/* 700 MHz */
+	413000,		/* 600 MHz */
+	413000,		/* 500 MHz */
+	413000,		/* 400 MHz */
 	0,		/* 300 MHz */
 	0,		/* 200 MHz */
 };
@@ -617,7 +617,7 @@ static void __init set_volt_table_CA15(void)
 		else
 			panic("can not support speed select (0x%x)\n", spd_sel);
 	}
-	min_support_idx_CA15 = L17;	/* 800 MHz */
+	min_support_idx_CA15 = L21;	/* 400 MHz */
 
 	pr_info("CPUFREQ of CA15 max_freq : L%d %u khz\n", max_support_idx_CA15,
 		exynos5430_freq_table_CA15[max_support_idx_CA15].frequency);
