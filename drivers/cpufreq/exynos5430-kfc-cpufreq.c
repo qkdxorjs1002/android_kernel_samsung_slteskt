@@ -488,7 +488,7 @@ static void __init set_volt_table_CA7(void)
 	}
 
 #if defined(CONFIG_SOC_EXYNOS5430_L)
-	max_support_idx_CA7 = L7;	/* 1.3GHz */
+	max_support_idx_CA7 = L5;	/* 1.5GHz */
 #else
 	max_support_idx_CA7 = L5;	/* 1.5GHz */
 #endif
