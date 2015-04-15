@@ -922,6 +922,8 @@ endmenu
 
 source "arch/arm/mach-exynos/Kconfig"
 
+source "arch/arm/plat-samsung/Kconfig"
+
 # Definitions to make life easier
 config ARCH_ACORN
 	bool
