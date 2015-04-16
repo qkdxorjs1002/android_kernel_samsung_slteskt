@@ -1547,6 +1547,18 @@ static ssize_t show_kfc_freq_table(struct kobject *kobj,
         return count;
 }
 
+static ssize_t show_kfc_volt_table(struct kobject *kobj,
+			     struct attribute *attr, char *buf)
+{
+	return show_volt_table(kobj, attr, buf, CA7);
+}
+
+static ssize_t store_kfc_volt_table(struct kobject *kobj, struct attribute *attr,
+					const char *buf, size_t count)
+{
+	return store_volt_table(kobj, attr, buf, count, CA7);
+}
+
 static ssize_t show_kfc_min_freq(struct kobject *kobj,
 			     struct attribute *attr, char *buf)
 {
