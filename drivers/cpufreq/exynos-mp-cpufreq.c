@@ -26,6 +26,7 @@
 #include <linux/reboot.h>
 #include <linux/delay.h>
 #include <linux/cpu.h>
+#include <linux/ipa.h>
 #include <linux/pm_qos.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
