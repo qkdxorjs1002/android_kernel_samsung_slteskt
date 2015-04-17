@@ -617,7 +617,7 @@ static void __init set_volt_table_CA15(void)
 		else
 			panic("can not support speed select (0x%x)\n", spd_sel);
 	}
-	min_support_idx_CA15 = L23;	/* 400 MHz */
+	min_support_idx_CA15 = L23;	/* 200 MHz */
 
 	pr_info("CPUFREQ of CA15 max_freq : L%d %u khz\n", max_support_idx_CA15,
 		exynos5430_freq_table_CA15[max_support_idx_CA15].frequency);
