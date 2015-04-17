@@ -39,7 +39,7 @@
 #define EMA_VAL_1		0x1
 #define EMA_VAL_3		0x3
 #define EMA_VAL_4		0x4
-#define EMA_VOLT		900000
+#define EMA_VOLT		850000
 #define EGL_L1_EMA_SHIFT	8
 #define EGL_L2_EMA_SHIFT	20
 #define CLK_EGL_EMA_OFFSET	0x0330
@@ -379,8 +379,8 @@ static int exynos5430_bus_table_CA15[CPUFREQ_LEVEL_END_CA15] = {
 	413000,		/* 600 MHz */
 	413000,		/* 500 MHz */
 	413000,		/* 400 MHz */
-	0,		/* 300 MHz */
-	0,		/* 200 MHz */
+	413000,		/* 300 MHz */
+	413000,		/* 200 MHz */
 };
 
 static int exynos5430_ema_valid_check_CA15(int ema_con_val)
@@ -617,7 +617,7 @@ static void __init set_volt_table_CA15(void)
 		else
 			panic("can not support speed select (0x%x)\n", spd_sel);
 	}
-	min_support_idx_CA15 = L21;	/* 400 MHz */
+	min_support_idx_CA15 = L23;	/* 400 MHz */
 
 	pr_info("CPUFREQ of CA15 max_freq : L%d %u khz\n", max_support_idx_CA15,
 		exynos5430_freq_table_CA15[max_support_idx_CA15].frequency);
