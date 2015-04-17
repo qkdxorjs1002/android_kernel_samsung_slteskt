@@ -39,7 +39,7 @@
 #define EMA_VAL_1		0x1
 #define EMA_VAL_3		0x3
 #define EMA_VAL_4		0x4
-#define EMA_VOLT		850000
+#define EMA_VOLT		900000
 #define EGL_L1_EMA_SHIFT	8
 #define EGL_L2_EMA_SHIFT	20
 #define CLK_EGL_EMA_OFFSET	0x0330
