@@ -505,11 +505,13 @@ static irqreturn_t jpeg_irq_handler(int irq, void *priv)
 	clear_bit(DEV_RUN, &jpeg->state);
 
 	if (int_status & 0x2) {
-		struct m2m1shot_task *task =
+		if (jpeg->oneshot_dev) {
+			struct m2m1shot_task *task =
 				m2m1shot_get_current_task(jpeg->oneshot_dev);
-		task->task.buf_cap.plane[0].len =
-			jpeg_get_stream_size(jpeg->regs);
-		m2m1shot_task_finish(jpeg->oneshot_dev, task, true);
+			task->task.buf_cap.plane[0].len =
+				jpeg_get_stream_size(jpeg->regs);
+			m2m1shot_task_finish(jpeg->oneshot_dev, task, true);
+		}
 	} else {
 		dev_err(jpeg->dev, "JPEG ERROR Interrupt (%#x) is triggered\n",
 				int_status);
