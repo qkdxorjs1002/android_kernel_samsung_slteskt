@@ -671,8 +671,12 @@ void gsc_hw_set_in_image_rgb(struct gsc_ctx *ctx)
 		cfg |= GSC_IN_RGB565;
 	else if (frame->fmt->pixelformat == V4L2_PIX_FMT_BGR32)
 		cfg |= GSC_IN_XRGB8888;
-	else if (frame->fmt->pixelformat == V4L2_PIX_FMT_RGB32)
-		cfg |= GSC_IN_XRGB8888 | GSC_IN_RB_SWAP;
+	else if (frame->fmt->pixelformat == V4L2_PIX_FMT_RGB32) {
+		if (gsc_cap_opened(dev))
+			cfg |= GSC_IN_XRGB8888;
+		else
+			cfg |= GSC_IN_XRGB8888 | GSC_IN_RB_SWAP;
+	}
 
 	writel(cfg, dev->regs + GSC_IN_CON);
 }
