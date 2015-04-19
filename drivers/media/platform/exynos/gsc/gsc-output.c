@@ -769,12 +769,14 @@ static void gsc_out_buffer_queue(struct vb2_buffer *vb)
 
 	if (vb->acquire_fence) {
 		ret = sync_fence_wait(vb->acquire_fence, 1000);
+		if (ret == -ETIME) {
+			gsc_warn("sync_fence_wait() timeout");
+			ret = sync_fence_wait(vb->acquire_fence, 10 * MSEC_PER_SEC);
+		}
+		if (ret)
+			gsc_warn("sync_fence_wait() error");
 		sync_fence_put(vb->acquire_fence);
 		vb->acquire_fence = NULL;
-		if (ret < 0) {
-			gsc_err("synce_fence_wait() timeout");
-			return;
-		}
 	}
 
 	if (!q->streaming) {
@@ -884,7 +886,7 @@ static int gsc_output_open(struct file *file)
 		return ret;
 	}
 
-	gsc_pm_qos_ctrl(gsc, GSC_QOS_ON, pdata->mif_min, pdata->int_min);
+	gsc_pm_qos_ctrl(gsc, GSC_QOS_ON, pdata->mif_min, pdata->int_min_otf);
 	/* Return if the corresponding mem2mem/output/capture video node
 	   is already opened. */
 	if (gsc_m2m_opened(gsc) || gsc_cap_opened(gsc) || gsc_out_opened(gsc)) {

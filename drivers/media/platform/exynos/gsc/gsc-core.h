@@ -75,7 +75,7 @@ extern int gsc_dbg;
 	} while (0)
 
 #define GSC_MAX_CLOCKS			5
-#define GSC_SHUTDOWN_TIMEOUT		((100*HZ)/1000)
+#define GSC_SHUTDOWN_TIMEOUT		(1*HZ)
 #define GSC_MAX_DEVS			4
 #define WORKQUEUE_NAME_SIZE		32
 #define GSC_MAX_PREF_BUF		3
