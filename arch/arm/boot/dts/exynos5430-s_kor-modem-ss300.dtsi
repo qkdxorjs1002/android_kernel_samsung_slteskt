@@ -24,7 +24,8 @@
 		status = "okay";
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&cp_on &cp_reset &pda_active &phone_active &ap2cp_wakeup &ap2cp_status &cp2ap_wakeup &cp2ap_status>;
+		pinctrl-0 = <&cp_on &cp_reset &pda_active &phone_active &ap2cp_wakeup &ap2cp_status
+&cp2ap_wakeup &cp2ap_status &gpio_ipc_int2cp &ap_dump_int>;
 
 		mif,gpio_cp_on = <&gpg2 3 0x1>;
 
@@ -33,6 +34,8 @@
 		mif,gpio_phone_active = <&gpa2 5 0xf>;
 
 		mif,gpio_cp_status = <&gpa2 3 0xf>;
+		mif,gpio_ipc_int2cp = <&gpf4 7 0x1>;
+		mif,gpio_ap_dump_int = <&gpf4 4 0x1>;
 
 		link_pm {
 			gpio_cp2ap_wakeup = <&gpa3 1 0xf>;
@@ -66,6 +69,19 @@
 
 		ap2cp_status: ap2cp_status {
 			samsung,pins = "gpf4-6";
+			samsung,pin-function = <1>;
+			samsung,pin-con-pdn = <3>;
+			samsung,pin-pud-pdn = <0>;
+		};
+
+		gpio_ipc_int2cp: gpio_ipc_int2cp {
+			samsung,pins = "gpf4-7";
+			samsung,pin-function = <1>;
+			samsung,pin-val = <0>;
+		};
+
+		ap_dump_int: ap_dump_int {
+			samsung,pins = "gpf4-4";
 			samsung,pin-function = <1>;
 			samsung,pin-con-pdn = <3>;
 			samsung,pin-pud-pdn = <0>;
@@ -154,6 +170,7 @@
 		PIN_SLP(gpg2-4, PREV, NONE);	/* PDA_ACTIVE */
 		PIN_SLP(gpf4-3, PREV, NONE);	/* AP2CP_WAKEUP */
 		PIN_SLP(gpf4-6, PREV, NONE);	/* AP2CP_STATUS */
+		PIN_SLP(gpf4-7, OUT0, NONE);	/* IPC_INT2CP */
 	};
 };
 

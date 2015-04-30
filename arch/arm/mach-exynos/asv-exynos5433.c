@@ -419,6 +419,8 @@ int exynos5_init_asv(struct asv_common *asv_info)
 	if (asv_info->ops_cal->get_table_ver != NULL)
 		pr_info("ASV: ASV Table Ver : %d \n",
 			asv_info->ops_cal->get_table_ver());
+	if (is_max_limit_sample())
+		pr_info("ASV: ATL max frequency limited\n");
 
 	if (asv_info->ops_cal->is_fused_sp_gr())
 		pr_info("ASV: Use Speed Group\n");

@@ -85,23 +85,6 @@ void clear_boot_flag(unsigned int cpu, unsigned int mode)
 	__raw_writel(tmp, addr);
 }
 
-void exynos5433_secondary_up(unsigned int cpu_id)
-{
-	unsigned int phys_cpu = cpu_logical_map(cpu_id);
-	unsigned int tmp, core, cluster;
-	void __iomem *addr;
-
-	core = MPIDR_AFFINITY_LEVEL(phys_cpu, 0);
-	cluster = MPIDR_AFFINITY_LEVEL(phys_cpu, 1);
-
-	addr = EXYNOS_ARM_CORE_CONFIGURATION(core + (4 * cluster));
-
-	tmp = __raw_readl(addr);
-	tmp |= EXYNOS_CORE_INIT_WAKEUP_FROM_LOWPWR | EXYNOS_CORE_PWR_EN;
-
-	__raw_writel(tmp, addr);
-}
-
 void exynos5433_cpu_up(unsigned int cpu_id)
 {
 	unsigned int phys_cpu = cpu_logical_map(cpu_id);
@@ -462,6 +445,9 @@ int __init exynos5433_pmu_init(void)
 
 	exynos_eagle_asyncbridge_ignore_lpi();
 
+	/* Set core option register*/
+	exynos_core_option();
+
 	/*
 	 * Disable ARM USE_AUTOMATIC_L2FLUSHREQ which exists in only EVT1
 	 */
@@ -518,7 +504,7 @@ int __init exynos5433_pmu_init(void)
 	tmp |= 0x40;
 	__raw_writel(tmp, EXYNOS_PMU_DEBUG);
 
-	exynos_cpu.power_up = exynos5433_secondary_up;
+	exynos_cpu.power_up = exynos5433_cpu_up;
 	exynos_cpu.power_state = exynos5433_cpu_state;
 	exynos_cpu.power_down = exynos5433_cpu_down;
 	exynos_cpu.cluster_down = exynos5433_l2_down;
@@ -531,11 +517,3 @@ int __init exynos5433_pmu_init(void)
 
 	return 0;
 }
-
-static int __init arch_init_core_option(void)
-{
-	exynos_core_option();
-	return 0;
-}
-
-arch_initcall(arch_init_core_option);

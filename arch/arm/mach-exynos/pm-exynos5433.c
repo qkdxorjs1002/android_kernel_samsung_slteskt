@@ -68,30 +68,39 @@ extern u32 exynos_eint_to_pin_num(int eint);
 static void exynos_show_wakeup_reason_eint(void)
 {
 	int bit;
-	int reg_eintstart;
+	int i, size;
 	long unsigned int ext_int_pend;
-	unsigned long eint_wakeup_mask;
+	u64 eint_wakeup_mask, eint_wakeup_mask1;
+	u64 eintmask;
 	bool found = 0;
 
 	eint_wakeup_mask = __raw_readl(EXYNOS5433_EINT_WAKEUP_MASK);
+	eint_wakeup_mask1 = __raw_readl(EXYNOS5433_EINT_WAKEUP_MASK1);
+	eintmask = eint_wakeup_mask | (eint_wakeup_mask1 << 32);
 
-	for (reg_eintstart = 0; reg_eintstart <= 31; reg_eintstart += 8) {
-		ext_int_pend =
-			__raw_readl(EXYNOS543x_EINT_PEND(exynos_eint_base,
-						reg_eintstart));
+	for (i = 0, size = 8; i < 64; i += size) {
+		if (i < 32)
+			ext_int_pend =
+				__raw_readl(EXYNOS543x_EINT_PEND(exynos_eint_base, i));
+		else
+			ext_int_pend =
+				__raw_readl(EXYNOS5433_EINT_PEND1(exynos_eint_base,
+							i - 32));
 
-		for_each_set_bit(bit, &ext_int_pend, 8) {
+		(i >= 40 && i < 48) ? (size = 4) : (size = 8);
+
+		for_each_set_bit(bit, &ext_int_pend, size) {
 			u32 gpio;
 			int irq;
 
-			if (eint_wakeup_mask & (1 << (reg_eintstart + bit)))
+			if (eintmask & (1 << (i + bit)))
 				continue;
 
-			gpio = exynos_eint_to_pin_num(reg_eintstart + bit);
+			gpio = exynos_eint_to_pin_num(i + bit);
 			irq = gpio_to_irq(gpio);
 
 			log_wakeup_reason(irq);
-			update_wakeup_reason_stats(irq, reg_eintstart + bit);
+			update_wakeup_reason_stats(irq, i + bit);
 			found = 1;
 		}
 	}
@@ -104,11 +113,17 @@ static void exynos_show_wakeup_reason_eint(void)
 static void exynos_show_wakeup_registers(unsigned long wakeup_stat)
 {
 	pr_info("WAKEUP_STAT: 0x%08lx\n", wakeup_stat);
-	pr_info("EINT_PEND: 0x%08x, 0x%08x 0x%08x, 0x%08x\n",
+	pr_info("EINT_PEND: 0x%02x, 0x%02x 0x%02x, 0x%02x\n",
 			__raw_readl(EXYNOS543x_EINT_PEND(exynos_eint_base, 0)),
 			__raw_readl(EXYNOS543x_EINT_PEND(exynos_eint_base, 8)),
 			__raw_readl(EXYNOS543x_EINT_PEND(exynos_eint_base, 16)),
 			__raw_readl(EXYNOS543x_EINT_PEND(exynos_eint_base, 24)));
+	pr_info("EINT_PEND1: 0x%02x, 0x%02x 0x%02x, 0x%02x, 0x%02x\n",
+			__raw_readl(EXYNOS5433_EINT_PEND1(exynos_eint_base, 0)),
+			__raw_readl(EXYNOS5433_EINT_PEND1(exynos_eint_base, 8)),
+			__raw_readl(EXYNOS5433_EINT_PEND1(exynos_eint_base, 12)),
+			__raw_readl(EXYNOS5433_EINT_PEND1(exynos_eint_base, 16)),
+			__raw_readl(EXYNOS5433_EINT_PEND1(exynos_eint_base, 24)));
 }
 #else
 static void exynos_show_wakeup_registers(unsigned long wakeup_stat) {}
@@ -302,7 +317,7 @@ arch_initcall(exynos_pm_drvinit);
 
 static __init int exynos_pm_syscore_init(void)
 {
-	exynos_eint_base = ioremap(EXYNOS543x_PA_GPIO_ALIVE, SZ_4K);
+	exynos_eint_base = ioremap(EXYNOS543x_PA_GPIO_ALIVE, SZ_8K);
 
 	if (exynos_eint_base == NULL) {
 		pr_err("%s: unable to ioremap for EINT base address\n",

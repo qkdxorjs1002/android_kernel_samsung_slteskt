@@ -829,7 +829,7 @@ int ghsic_data_connect(void *gptr, int port_num)
 		gser->in->driver_data = port;
 		gser->out->driver_data = port;
 	}
-#if 0
+#if 0 
 	else if (port->gtype == USB_GADGET_RMNET) {
 		gr = gptr;
 		spin_lock_irqsave(&port->tx_lock, flags);
@@ -845,7 +845,7 @@ int ghsic_data_connect(void *gptr, int port_num)
 		gr->in->driver_data = port;
 		gr->out->driver_data = port;
 	}
-#endif
+#endif 
 /*else if (port->gtype == USB_GADGET_QDSS) {
 		pr_debug("%s:: port type = USB_GADGET_QDSS\n", __func__);
 		qdss = gptr;

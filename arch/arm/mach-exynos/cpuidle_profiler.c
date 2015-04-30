@@ -269,7 +269,7 @@ static ssize_t store_cpuidle_profile(struct kobject *kobj,
 {
 	int input;
 
-	if (!sscanf(buf, "%d", &input))
+	if (!sscanf(buf, "%1d", &input))
 		return -EINVAL;
 
 	switch (input) {

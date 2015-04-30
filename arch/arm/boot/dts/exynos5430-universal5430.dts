@@ -743,6 +743,22 @@
 			timing,dsi-escape-clk = <16>;
 			mic = <1>;
 		};
+
+		enable_display_driver_power {
+			type = "PINCTRL", "PINCTRL";
+			subtype = "default", "turnon_tes";
+		};
+		disable_display_driver_power {
+			type = "GPIO", "PINCTRL";
+			subtype = "LOW", "turnoff_tes";
+			gpios = <&gpv7 2 0x1>;
+		};
+		reset_display_driver_panel {
+			type = "GPIO", "DELAY", "GPIO", "DELAY", "GPIO", "DELAY";
+			subtype = "HIGH", "USLEEP", "LOW", "USLEEP", "HIGH", "USLEEP";
+			gpios = <&gpv7 2 0x1>, <&gpv7 2 0x1>, <&gpv7 2 0x1>;
+			delay = <5000 6000>, <5000 6000>, <10000 11000>;
+		};
 	};
 
 	usb@15400000 {
@@ -1041,28 +1057,28 @@
 			default_i2c = <0>;
 
 			front_preview_int = <317000>; /* L1 */
-			front_preview_cam = <333000>; /* L7 */
-			front_preview_mif = <825000>; /* L0 */
+			front_preview_cam = <222000>; /* L7 */
+			front_preview_mif = <543000>; /* L2 */
 			front_preview_i2c = <0>;
 
 			front_capture_int = <317000>; /* L1 */
-			front_capture_cam = <333000>; /* L7 */
-			front_capture_mif = <825000>; /* L0 */
+			front_capture_cam = <222000>; /* L7 */
+			front_capture_mif = <543000>; /* L2 */
 			front_capture_i2c = <0>;
 
 			front_camcording_int = <317000>; /* L1 */
-			front_camcording_cam = <333000>; /* L7 */
-			front_camcording_mif = <825000>; /* L0 */
+			front_camcording_cam = <222000>; /* L7 */
+			front_camcording_mif = <543000>; /* L2 */
 			front_camcording_i2c = <0>;
 
 			front_vt1_int = <317000>; /* L1 */
-			front_vt1_cam = <333000>; /* L7 */
-			front_vt1_mif = <825000>; /* L0 */
+			front_vt1_cam = <222000>; /* L7 */
+			front_vt1_mif = <543000>; /* L2 */
 			front_vt1_i2c = <0>;
 
 			front_vt2_int = <317000>; /* L1 */
-			front_vt2_cam = <333000>; /* L7 */
-			front_vt2_mif = <825000>; /* L0 */
+			front_vt2_cam = <222000>; /* L7 */
+			front_vt2_mif = <543000>; /* L2 */
 			front_vt2_i2c = <0>;
 
 			rear_preview_fhd_int = <317000>; /* L1 */
