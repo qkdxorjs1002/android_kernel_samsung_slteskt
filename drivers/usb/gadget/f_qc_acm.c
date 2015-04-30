@@ -958,7 +958,7 @@ static struct usb_function *serial_alloc_func(struct usb_function_instance *fi)
 	//serial->port.func.name = kasprintf(GFP_KERNEL, "serial%u", opts->port_num + 1);
 	serial->port.func.name = "serial";
 #endif
-
+	
 	serial->port.func.strings = serial_strings;
 	/* descriptors are per-instance copies */
 	serial->port.func.bind = serial_bind;

@@ -51,6 +51,24 @@ enum bts_index {
 	BTS_IDX_GSCL2,
 	BTS_IDX_MFC0,
 	BTS_IDX_MFC1,
+	BTS_IDX_G3D0,
+	BTS_IDX_G3D1,
+	BTS_IDX_MSCL0,
+	BTS_IDX_MSCL1,
+	BTS_IDX_JPEG,
+	BTS_IDX_FIMC_FD,
+	BTS_IDX_ISPCPU,
+	BTS_IDX_FIMC_ISP,
+	BTS_IDX_FIMC_DRC,
+	BTS_IDX_FIMC_SCLC,
+	BTS_IDX_FIMC_DIS0,
+	BTS_IDX_FIMC_DIS1,
+	BTS_IDX_FIMC_SCLP,
+	BTS_IDX_FIMC_3DNR,
+	BTS_IDX_G2D,
+	BTS_IDX_HEVC0,
+	BTS_IDX_HEVC1,
+	BTS_IDX_NUM,
 };
 
 enum bts_id {
@@ -73,19 +91,29 @@ enum bts_id {
 	BTS_GSCL2 = (1 << BTS_IDX_GSCL2),
 	BTS_MFC0 = (1 << BTS_IDX_MFC0),
 	BTS_MFC1 = (1 << BTS_IDX_MFC1),
+	BTS_G3D0 = (1 << BTS_IDX_G3D0),
+	BTS_G3D1 = (1 << BTS_IDX_G3D1),
 };
 
 enum exynos_bts_scenario {
 	BS_DEFAULT,
 	BS_MFC_UD_ENCODING_ENABLE,
 	BS_MFC_UD_ENCODING_DISABLE,
+	BS_MFC_UD_DECODING_ENABLE,
+	BS_MFC_UD_DECODING_DISABLE,
 	BS_CAM_SCEN_ENABLE,
 	BS_CAM_SCEN_DISABLE,
 	BS_GSCL_OTF_ENABLE,
 	BS_GSCL_OTF_DISABLE,
+	BS_G3D_SCENARIO_ENABLE,
+	BS_G3D_SCENARIO_DISABLE,
 	BS_DISABLE,
 	BS_MAX,
 };
+
+#define DEFAULT_BTS_ID_COUNT (1 << BTS_IDX_MSCL0)
+#define MAKE_BTS_ID(x) (DEFAULT_BTS_ID_COUNT + \
+		(DEFAULT_BTS_ID_COUNT * (x)))
 
 struct bts_table {
 	struct bts_set_table *table_list;
@@ -93,7 +121,7 @@ struct bts_table {
 };
 
 struct bts_info {
-	enum bts_id id;
+	unsigned int id;
 	const char *name;
 	unsigned int pa_base;
 	void __iomem *va_base;
@@ -116,6 +144,7 @@ struct bts_set_table {
 struct bts_scen_status {
 	bool cam;
 	bool ud_scen;
+	bool g3d_scen;
 };
 
 struct bts_scenario {
@@ -127,10 +156,12 @@ struct bts_scenario {
 struct bts_scen_status pr_state = {
 	.cam = false,
 	.ud_scen = false,
+	.g3d_scen = false,
 };
 
 #define update_cam(a) (pr_state.cam = a)
 #define update_ud_scen(a) (pr_state.ud_scen= a)
+#define update_g3d_scen(a) (pr_state.g3d_scen= a)
 
 #define BTS_DECON (BTS_DECONM0 | BTS_DECONM1 |			\
 			BTS_DECONM2 | BTS_DECONM3 | BTS_DECONM4)
@@ -141,8 +172,9 @@ struct bts_scen_status pr_state = {
 			BTS_FIMC_LITE_D  | BTS_3AA0 | BTS_3AA1)
 #define BTS_MFC (BTS_MFC0 | BTS_MFC1)
 #define BTS_GSCL (BTS_GSCL0 | BTS_GSCL1 | BTS_GSCL2)
+#define BTS_G3D (BTS_G3D0 | BTS_G3D1)
 
-#define is_bts_scen_ip(a) (a & (BTS_DECON | BTS_DECONTV | BTS_MFC))
+#define is_bts_scen_ip(a) (a & (BTS_DECON | BTS_DECONTV | BTS_MFC | BTS_G3D))
 
 #define BTS_TABLE(num)					\
 static struct bts_set_table axiqos_##num##_table[] = {	\
@@ -251,6 +283,16 @@ static struct bts_set_table mo_decon_tv_static_table[] = {
 	{READ_QOS_CONTROL, 0x3},
 };
 
+static struct bts_set_table axiqos_g3d_table[] = {
+	{READ_QOS_CONTROL, 0x0},
+	{READ_CHANNEL_PRIORITY, 0xaaaa},
+	{READ_TOKEN_MAX_VALUE, 0xffdf},
+	{READ_BW_UPPER_BOUNDARY, 0x18},
+	{READ_BW_LOWER_BOUNDARY, 0x1},
+	{READ_INITIAL_TOKEN_VALUE, 0x8},
+	{READ_QOS_CONTROL, 0x1},
+};
+
 #ifdef BTS_DBGGEN
 #define BTS_DBG(x...) pr_err(x)
 #else
@@ -263,7 +305,7 @@ static struct bts_set_table mo_decon_tv_static_table[] = {
 #define BTS_DBG1(x...) do {} while (0)
 #endif
 
-static struct bts_info exynos5_bts[] = {
+static struct bts_info exynos5_bts[BTS_IDX_NUM] = {
 	[BTS_IDX_DECONM0] = {
 		.id = BTS_DECONM0,
 		.name = "decon0",
@@ -608,6 +650,10 @@ static struct bts_info exynos5_bts[] = {
 		.table[BS_MFC_UD_ENCODING_ENABLE].table_num = ARRAY_SIZE(axiqos_uhd_mfc_table),
 		.table[BS_MFC_UD_ENCODING_DISABLE].table_list = disable_table,
 		.table[BS_MFC_UD_ENCODING_DISABLE].table_num = ARRAY_SIZE(disable_table),
+		.table[BS_MFC_UD_DECODING_ENABLE].table_list = axiqos_uhd_mfc_table,
+		.table[BS_MFC_UD_DECODING_ENABLE].table_num = ARRAY_SIZE(axiqos_uhd_mfc_table),
+		.table[BS_MFC_UD_DECODING_DISABLE].table_list = disable_table,
+		.table[BS_MFC_UD_DECODING_DISABLE].table_num = ARRAY_SIZE(disable_table),
 		.table[BS_DISABLE].table_list = disable_table,
 		.table[BS_DISABLE].table_num = ARRAY_SIZE(disable_table),
 		.scen = BS_DISABLE,
@@ -626,11 +672,171 @@ static struct bts_info exynos5_bts[] = {
 		.table[BS_MFC_UD_ENCODING_ENABLE].table_num = ARRAY_SIZE(axiqos_uhd_mfc_table),
 		.table[BS_MFC_UD_ENCODING_DISABLE].table_list = disable_table,
 		.table[BS_MFC_UD_ENCODING_DISABLE].table_num = ARRAY_SIZE(disable_table),
+		.table[BS_MFC_UD_DECODING_ENABLE].table_list = axiqos_uhd_mfc_table,
+		.table[BS_MFC_UD_DECODING_ENABLE].table_num = ARRAY_SIZE(axiqos_uhd_mfc_table),
+		.table[BS_MFC_UD_DECODING_DISABLE].table_list = disable_table,
+		.table[BS_MFC_UD_DECODING_DISABLE].table_num = ARRAY_SIZE(disable_table),
 		.table[BS_DISABLE].table_list = disable_table,
 		.table[BS_DISABLE].table_num = ARRAY_SIZE(disable_table),
 		.scen = BS_DISABLE,
 		.on = false,
 		.enable = true,
+	},
+	[BTS_IDX_G3D0] = {
+		.id = BTS_G3D0,
+		.name = "g3d0",
+		.pa_base = EXYNOS5433_PA_BTS_G3D0,
+		.pd_name = "pd-g3d",
+		.clk_name = "gate_bts_g3d0",
+		.table[BS_DEFAULT].table_list = disable_table,
+		.table[BS_DEFAULT].table_num = ARRAY_SIZE(disable_table),
+		.table[BS_G3D_SCENARIO_ENABLE].table_list = axiqos_g3d_table,
+		.table[BS_G3D_SCENARIO_ENABLE].table_num = ARRAY_SIZE(axiqos_g3d_table),
+		.table[BS_G3D_SCENARIO_DISABLE].table_list = disable_table,
+		.table[BS_G3D_SCENARIO_DISABLE].table_num = ARRAY_SIZE(disable_table),
+		.table[BS_DISABLE].table_list = disable_table,
+		.table[BS_DISABLE].table_num = ARRAY_SIZE(disable_table),
+		.scen = BS_DISABLE,
+		.on = false,
+		.enable = true,
+	},
+	[BTS_IDX_G3D1] = {
+		.id = BTS_G3D1,
+		.name = "g3d1",
+		.pa_base = EXYNOS5433_PA_BTS_G3D1,
+		.pd_name = "pd-g3d",
+		.clk_name = "gate_bts_g3d1",
+		.table[BS_DEFAULT].table_list = disable_table,
+		.table[BS_DEFAULT].table_num = ARRAY_SIZE(disable_table),
+		.table[BS_G3D_SCENARIO_ENABLE].table_list = axiqos_g3d_table,
+		.table[BS_G3D_SCENARIO_ENABLE].table_num = ARRAY_SIZE(axiqos_g3d_table),
+		.table[BS_G3D_SCENARIO_DISABLE].table_list = disable_table,
+		.table[BS_G3D_SCENARIO_DISABLE].table_num = ARRAY_SIZE(disable_table),
+		.table[BS_DISABLE].table_list = disable_table,
+		.table[BS_DISABLE].table_num = ARRAY_SIZE(disable_table),
+		.scen = BS_DISABLE,
+		.on = false,
+		.enable = true,
+	},
+	[BTS_IDX_MSCL0] = {
+		.id = MAKE_BTS_ID(0),
+		.name = "mscl0",
+		.pa_base = EXYNOS5430_PA_BTS_MSCL0,
+		.pd_name = "spd-mscl0",
+		.clk_name = "gate_bts_m2mscaler0",
+		.on = false,
+	},
+	[BTS_IDX_MSCL1] = {
+		.id = MAKE_BTS_ID(1),
+		.name = "mscl1",
+		.pa_base = EXYNOS5430_PA_BTS_MSCL1,
+		.pd_name = "spd-mscl1",
+		.clk_name = "gate_bts_m2mscaler1",
+		.on = false,
+	},
+	[BTS_IDX_JPEG] = {
+		.id = MAKE_BTS_ID(2),
+		.name = "jpeg",
+		.pa_base = EXYNOS5430_PA_BTS_JPEG,
+		.pd_name = "spd-jpeg",
+		.clk_name = "gate_bts_jpeg",
+		.on = false,
+	},
+	[BTS_IDX_FIMC_FD] = {
+		.id = MAKE_BTS_ID(3),
+		.name = "fimc_fd",
+		.pa_base = EXYNOS5430_PA_BTS_FIMC_FD,
+		.pd_name = "pd-cam1",
+		.clk_name = "gate_bts_fd",
+		.on = false,
+	},
+	[BTS_IDX_ISPCPU] = {
+		.id = MAKE_BTS_ID(4),
+		.name = "ispcpu",
+		.pa_base = EXYNOS5430_PA_BTS_ISPCPU,
+		.pd_name = "pd-cam1",
+		.clk_name = "gate_bts_isp3p",
+		.on = false,
+	},
+	[BTS_IDX_FIMC_ISP] = {
+		.id = MAKE_BTS_ID(5),
+		.name = "fimc_isp",
+		.pa_base = EXYNOS5430_PA_BTS_FIMC_ISP,
+		.pd_name = "pd-isp",
+		.clk_name = "gate_bts_isp",
+		.on = false,
+	},
+	[BTS_IDX_FIMC_DRC] = {
+		.id = MAKE_BTS_ID(6),
+		.name = "fimc_drc",
+		.pa_base = EXYNOS5430_PA_BTS_FIMC_DRC,
+		.pd_name = "pd-isp",
+		.clk_name = "gate_bts_drc",
+		.on = false,
+	},
+	[BTS_IDX_FIMC_SCLC] = {
+		.id = MAKE_BTS_ID(7),
+		.name = "fimc_sclc",
+		.pa_base = EXYNOS5430_PA_BTS_FIMC_SCLC,
+		.pd_name = "pd-isp",
+		.clk_name = "gate_bts_scalerc",
+		.on = false,
+	},
+	[BTS_IDX_FIMC_DIS0] = {
+		.id = MAKE_BTS_ID(8),
+		.name = "fimc_dis0",
+		.pa_base = EXYNOS5430_PA_BTS_FIMC_DIS0,
+		.pd_name = "pd-isp",
+		.clk_name = "gate_bts_dis0",
+		.on = false,
+	},
+	[BTS_IDX_FIMC_DIS1] = {
+		.id = MAKE_BTS_ID(9),
+		.name = "fimc_dis1",
+		.pa_base = EXYNOS5430_PA_BTS_FIMC_DIS1,
+		.pd_name = "pd-isp",
+		.clk_name = "gate_bts_dis1",
+		.on = false,
+	},
+	[BTS_IDX_FIMC_SCLP] = {
+		.id = MAKE_BTS_ID(10),
+		.name = "fimc_sclp",
+		.pa_base = EXYNOS5430_PA_BTS_FIMC_SCLP,
+		.pd_name = "pd-isp",
+		.clk_name = "gate_bts_scalerp",
+		.on = false,
+	},
+	[BTS_IDX_FIMC_3DNR] = {
+		.id = MAKE_BTS_ID(11),
+		.name = "fimc_3dnr",
+		.pa_base = EXYNOS5430_PA_BTS_FIMC_3DNR,
+		.pd_name = "pd-isp",
+		.clk_name = "gate_bts_3dnr",
+		.on = false,
+	},
+	[BTS_IDX_G2D] = {
+		.id = MAKE_BTS_ID(18),
+		.name = "g2d",
+		.pa_base = EXYNOS5430_PA_BTS_G2D,
+		.pd_name = "pd-g2d",
+		.clk_name = "gate_bts_g2d",
+		.on = false,
+	},
+	[BTS_IDX_HEVC0] = {
+		.id = MAKE_BTS_ID(19),
+		.name = "hevc0",
+		.pa_base = EXYNOS5430_PA_BTS_HEVC0,
+		.pd_name = "pd-hevc",
+		.clk_name = "gate_bts_hevc_0",
+		.on = false,
+	},
+	[BTS_IDX_HEVC1] = {
+		.id = MAKE_BTS_ID(20),
+		.name = "hevc1",
+		.pa_base = EXYNOS5430_PA_BTS_HEVC1,
+		.pd_name = "pd-hevc",
+		.clk_name = "gate_bts_hevc_1",
+		.on = false,
 	},
 };
 
@@ -638,6 +844,16 @@ static struct bts_scenario bts_scen[] = {
 	[BS_DEFAULT] = {
 		.name = "bts_default",
 		.id = BS_DEFAULT,
+	},
+	[BS_MFC_UD_DECODING_ENABLE] = {
+		.name = "bts_mfc_ud_decoding_enabled",
+		.ip = BTS_MFC,
+		.id = BS_MFC_UD_DECODING_ENABLE,
+	},
+	[BS_MFC_UD_DECODING_DISABLE] = {
+		.name = "bts_mfc_ud_decoding_disable",
+		.ip = BTS_MFC,
+		.id = BS_MFC_UD_DECODING_DISABLE,
 	},
 	[BS_MFC_UD_ENCODING_ENABLE] = {
 		.name = "bts_mfc_ud_encoding_enabled",
@@ -668,6 +884,16 @@ static struct bts_scenario bts_scen[] = {
 		.name = "bts_gscl_otf_disable",
 		.ip = BTS_GSCL,
 		.id = BS_GSCL_OTF_DISABLE,
+	},
+	[BS_G3D_SCENARIO_ENABLE] = {
+		.name = "bts_g3d_scenario_eanble",
+		.ip = BTS_G3D,
+		.id = BS_G3D_SCENARIO_ENABLE,
+	},
+	[BS_G3D_SCENARIO_DISABLE] = {
+		.name = "bts_g3d_scenario_disable",
+		.ip = BTS_G3D,
+		.id = BS_G3D_SCENARIO_DISABLE,
 	},
 	[BS_DISABLE] = {
 		.name = "bts_disable",
@@ -706,6 +932,9 @@ static void set_bts_ip_table(enum exynos_bts_scenario scen,
 {
 	int i;
 	struct bts_set_table *table = bts->table[scen].table_list;
+
+	if (!table)
+		return;
 
 	BTS_DBG("[BTS] %s on:%d bts scen: [%s]->[%s]\n", bts->name, bts->on,
 			bts_scen[bts->scen].name, bts_scen[scen].name);
@@ -748,12 +977,26 @@ void bts_scen_update(enum bts_scen_type type, unsigned int val)
 	spin_lock(&bts_lock);
 
 	switch (type) {
+	case TYPE_MFC_UD_DECODING:
+
+		scen = val ? BS_MFC_UD_DECODING_ENABLE : BS_MFC_UD_DECODING_DISABLE;
+		BTS_DBG("[BTS] MFC_UD_DECODING: %s\n", bts_scen[scen].name);
+
+		update_ud_scen(val);
+		break;
 	case TYPE_MFC_UD_ENCODING:
 
 		scen = val ? BS_MFC_UD_ENCODING_ENABLE : BS_MFC_UD_ENCODING_DISABLE;
 		BTS_DBG("[BTS] MFC_UD_ENCODING: %s\n", bts_scen[scen].name);
 
 		update_ud_scen(val);
+		break;
+	case TYPE_G3D_SCENARIO:
+
+		scen = val ? BS_G3D_SCENARIO_ENABLE: BS_G3D_SCENARIO_DISABLE;
+		BTS_DBG("[BTS] G3D SCENARIO: %s\n", bts_scen[scen].name);
+
+		update_g3d_scen(val);
 		break;
 	default:
 		break;
@@ -781,6 +1024,49 @@ void bts_otf_initialize(unsigned int id, bool on)
 	set_bts_ip_table(scen, &exynos5_bts[id + BTS_IDX_GSCL0]);
 
 	spin_unlock(&bts_lock);
+}
+
+void exynos5_bts_show_mo_status(void)
+{
+	unsigned int i;
+	unsigned int r_ctrl, w_ctrl;
+	unsigned int r_mo, w_mo;
+	unsigned int drex_lpi_pause, drex_empty_state;
+	unsigned int drex_r_occupancy, drex_w_occupancy;
+
+	pr_err("--------DUMP ACTIVATED BTS MO COUNT & DREX STATUS----------\n");
+	pr_err("-----------------------------------------------------------\n");
+	drex_lpi_pause = __raw_readl(drex0_va_base + 0x500);
+	drex_empty_state = __raw_readl(drex0_va_base + 0x504);
+	drex_r_occupancy = __raw_readl(drex0_va_base + 0x508);
+	drex_w_occupancy = __raw_readl(drex0_va_base + 0x50C);
+	pr_err("DREX0 LPI_PAUSE: %#x, EMPTY_STATE: %#x, "
+			"R_OCCUPANCY: %#x, W_OCCUPANCY: %#x\n",
+			drex_lpi_pause, drex_empty_state,
+			drex_r_occupancy, drex_w_occupancy);
+	drex_lpi_pause = __raw_readl(drex1_va_base + 0x500);
+	drex_empty_state = __raw_readl(drex1_va_base + 0x504);
+	drex_r_occupancy = __raw_readl(drex1_va_base + 0x508);
+	drex_w_occupancy = __raw_readl(drex1_va_base + 0x50C);
+	pr_err("DREX1 LPI_PAUSE: %#x, EMPTY_STATE: %#x, "
+			"R_OCCUPANCY: %#x, W_OCCUPANCY: %#x\n",
+			drex_lpi_pause, drex_empty_state,
+			drex_r_occupancy, drex_w_occupancy);
+	pr_err("-----------------------------------------------------------\n");
+	for(i = 0; i < ARRAY_SIZE(exynos5_bts); i++) {
+		if (exynos5_bts[i].on) {
+			if (!__clk_is_enabled(exynos5_bts[i].clk))
+				return;
+			r_ctrl = __raw_readl(exynos5_bts[i].va_base + READ_QOS_CONTROL);
+			w_ctrl = __raw_readl(exynos5_bts[i].va_base + WRITE_QOS_CONTROL);
+			r_mo = __raw_readl(exynos5_bts[i].va_base + READ_MO);
+			w_mo = __raw_readl(exynos5_bts[i].va_base + WRITE_MO);
+			pr_err("BTS[%s] R_MO: %d, W_MO: %d, R_CTRL: %#x, W_CTRL: %#x\n",
+					exynos5_bts[i].name, r_mo, w_mo, r_ctrl, w_ctrl);
+
+		}
+	}
+	pr_err("-----------------------------------------------------------\n");
 }
 
 void bts_initialize(const char *pd_name, bool on)
@@ -863,11 +1149,6 @@ void bts_debugfs(void)
 
 static void bts_drex_init(void)
 {
-	void __iomem *drex0_va_base;
-	void __iomem *drex1_va_base;
-
-	drex0_va_base = ioremap(EXYNOS5430_PA_DREX0, SZ_4K);
-	drex1_va_base = ioremap(EXYNOS5430_PA_DREX1, SZ_4K);
 
 	BTS_DBG("[BTS][%s] bts drex init\n", __func__);
 
@@ -875,6 +1156,7 @@ static void bts_drex_init(void)
 	__raw_writel(0x0FFF0FFF, drex0_va_base + 0xD0);
 	__raw_writel(0x0FFF0FFF, drex0_va_base + 0xC8);
 	__raw_writel(0x0FFF0FFF, drex0_va_base + 0xC0);
+	__raw_writel(0x025E0294, drex0_va_base + 0xB0);
 	__raw_writel(0x0FFF0FFF, drex0_va_base + 0xA0);
 	__raw_writel(0x00000000, drex0_va_base + 0x100);
 	__raw_writel(0x88558855, drex0_va_base + 0x104);
@@ -882,12 +1164,10 @@ static void bts_drex_init(void)
 	__raw_writel(0x0FFF0FFF, drex1_va_base + 0xD0);
 	__raw_writel(0x0FFF0FFF, drex1_va_base + 0xC8);
 	__raw_writel(0x0FFF0FFF, drex1_va_base + 0xC0);
+	__raw_writel(0x025E0294, drex1_va_base + 0xB0);
 	__raw_writel(0x0FFF0FFF, drex1_va_base + 0xA0);
 	__raw_writel(0x00000000, drex1_va_base + 0x100);
 	__raw_writel(0x88558855, drex1_va_base + 0x104);
-
-	iounmap(drex0_va_base);
-	iounmap(drex1_va_base);
 }
 
 static int exynos_bts_notifier_event(struct notifier_block *this,
@@ -929,6 +1209,9 @@ static int __init exynos5_bts_init(void)
 			else {
 				exynos5_bts[i].clk = clk;
 				clk_prepare(exynos5_bts[i].clk);
+				clk_enable(exynos5_bts[i].clk);
+				printk("bts name = %s, state = %d\n",
+					exynos5_bts[i].name, exynos5_bts[i].on);
 			}
 		}
 
@@ -937,6 +1220,9 @@ static int __init exynos5_bts_init(void)
 		if (is_bts_scen_ip(exynos5_bts[i].id))
 			list_add(&exynos5_bts[i].scen_list, &bts_scen_list);
 	}
+
+	drex0_va_base = ioremap(EXYNOS5430_PA_DREX0, SZ_4K);
+	drex1_va_base = ioremap(EXYNOS5430_PA_DREX1, SZ_4K);
 
 	bts_drex_init();
 

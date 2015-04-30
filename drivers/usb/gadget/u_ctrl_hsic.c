@@ -218,7 +218,7 @@ static void ghsic_ctrl_connect_w(struct work_struct *w)
 		if (gr && gr->connect)
 			gr->connect(gr);
 	}
-#endif
+#endif	
 }
 
 int ghsic_ctrl_connect(void *gptr, int port_num)
@@ -409,7 +409,7 @@ static int ghsic_ctrl_remove(struct platform_device *pdev)
 
 	if (port->gtype == USB_GADGET_SERIAL)
 		gser = port->port_usb;
-#if 0
+#if 0	
 	else
 		gr = port->port_usb;
 #endif

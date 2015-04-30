@@ -428,11 +428,22 @@ static int subsys_start(struct subsys_device *subsys)
 {
 	int ret;
 
+#if !defined(CONFIG_MDM_HSIC_PM)
 	init_completion(&subsys->err_ready);
 	ret = subsys->desc->start(subsys->desc);
 	if (ret)
 		return ret;
+#else
+	notify_each_subsys_device(&subsys, 1, SUBSYS_BEFORE_POWERUP, NULL);
+	init_completion(&subsys->err_ready);
+	ret = subsys->desc->powerup(subsys->desc);
+	if (ret) {
+		notify_each_subsys_device(&subsys, 1, SUBSYS_POWERUP_FAILURE, NULL);
+		return ret;
+	}
+#endif
 
+#if !defined(CONFIG_MDM_HSIC_PM)
 	if (subsys->desc->is_not_loadable) {
 		subsys_set_state(subsys, SUBSYS_ONLINE);
 		return 0;
@@ -446,14 +457,22 @@ static int subsys_start(struct subsys_device *subsys)
 		subsys->desc->stop(subsys->desc);
 	else
 		subsys_set_state(subsys, SUBSYS_ONLINE);
+#endif
 
 	return ret;
 }
 
 static void subsys_stop(struct subsys_device *subsys)
 {
+#if !defined(CONFIG_MDM_HSIC_PM)
 	subsys->desc->stop(subsys->desc);
 	subsys_set_state(subsys, SUBSYS_OFFLINE);
+#else
+	notify_each_subsys_device(&subsys, 1, SUBSYS_BEFORE_SHUTDOWN, NULL);
+	subsys->desc->shutdown(subsys->desc);
+	subsys_set_state(subsys, SUBSYS_OFFLINE);
+	notify_each_subsys_device(&subsys, 1, SUBSYS_AFTER_SHUTDOWN, NULL);
+#endif
 }
 
 static struct subsys_tracking *subsys_get_track(struct subsys_device *subsys)
@@ -682,12 +701,8 @@ int subsystem_restart_dev(struct subsys_device *dev)
 		__subsystem_restart_dev(dev);
 		break;
 	case RESET_SOC:
-		__subsystem_restart_dev(dev);
-		break;
-#if 0
 		panic("subsys-restart: Resetting the SoC - %s crashed.", name);
 		break;
-#endif
 	default:
 		panic("subsys-restart: Unknown restart level!\n");
 		break;

@@ -102,9 +102,16 @@ u32 cal_get_dram_size(void)
 
 u32 cal_get_table_ver(void)
 {
-	u32 ver = __raw_readl(CHIPID_ASV_TBL_BASE + 0x000C) & 0x7;
+	u32 ver = __raw_readl(CHIPID_ASV_TBL_BASE + 0x000C) & 0xF;
 
 	return ver;
+}
+
+u32 cal_get_fs_abb(void)
+{
+	u32 master = GetBits(CHIPID_ASV_TBL_BASE + 0x0010, 20, 0x1);
+
+	return master;
 }
 
 u32 cal_get_ids(void)
@@ -123,8 +130,8 @@ u32 cal_get_ids(void)
 void cal_init(void)
 {
 	egl_ids = cal_get_ids();
-	dynimic_ema_egl1 = cal_get_ids();
-	dynimic_ema_egl2 = 0;
+	dynimic_ema_egl1 = GetBits(CHIPID_ASV_TBL_BASE + 0x000C, 24, 0x7);
+	dynimic_ema_egl2 = GetBits(CHIPID_ASV_TBL_BASE + 0x000C, 28, 0x7);
 	pop_type = GetBits(PKG_ID, 4, 3);
 	group_fused = GetBits(CHIPID_ASV_TBL_BASE+0x000C, 16, 0x1);
 
@@ -222,20 +229,20 @@ u32 cal_get_match_subgrp(u32 id, s32 level)
 			(level <= SYSC_DVFS_L13) ? 1 : 2;
 		break;
 	case SYSC_DVFS_G3D:
-		subgrp = (level <= SYSC_DVFS_L2) ? 0 :
-			(level <= SYSC_DVFS_L4) ? 1 : 2;
+		subgrp = (level <= SYSC_DVFS_L5) ? 0 :
+			(level <= SYSC_DVFS_L7) ? 1 : 2;
 		break;
 	case SYSC_DVFS_MIF:
-		subgrp = (level <= SYSC_DVFS_L2) ? 0 : /*  L0 1066 L1 933 L2:825 */
-			(level <= SYSC_DVFS_L5) ? 1 : 2; /* 633,543,413 // 275~ */
+		subgrp = (level <= SYSC_DVFS_L0) ? 0 :
+			(level <= SYSC_DVFS_L2) ? 1 : 2;
 		break;
 	case SYSC_DVFS_INT:
 		subgrp = (level <= SYSC_DVFS_L0) ? 0 : /*  L0_A, L0 */
 			(level <= SYSC_DVFS_L3) ? 1 : 2;
 		break;
 	case SYSC_DVFS_CAM:
-		subgrp = (level <= SYSC_DVFS_L0) ? 0 :
-			(level <= SYSC_DVFS_L2) ? 1 : 2;
+		subgrp = (level <= SYSC_DVFS_L3) ? 0 :
+			(level <= SYSC_DVFS_L4) ? 1 : 2;
 		break;
 	default:
 		Assert(0);
@@ -280,7 +287,7 @@ u32 cal_get_volt(u32 id, s32 level)
 	u32 volt, lock_volt;
 	u32 asvgrp;
 	u32 minlvl = cal_get_min_lv(id);
-	const u32 *p_table;
+	const u32 *p_table = NULL;
 	u32 idx;
 	Assert(level >= 0);
 
@@ -306,13 +313,22 @@ u32 cal_get_volt(u32 id, s32 level)
 				(id == SYSC_DVFS_CAM) ? volt_table_cam_v1[idx] :
 				NULL);
 		Assert(p_table != NULL);
-	} else {	/* table ver 5 */
+	} else if (cal_get_table_ver() == 5) {	/* table ver 5 */
 		p_table = ((id == SYSC_DVFS_EGL) ? volt_table_egl_v2[idx] :
 				(id == SYSC_DVFS_KFC) ? volt_table_kfc_v2[idx] :
 				(id == SYSC_DVFS_G3D) ? volt_table_g3d_v2[idx] :
 				(id == SYSC_DVFS_MIF) ? volt_table_mif_v2[idx] :
 				(id == SYSC_DVFS_INT) ? volt_table_int_v2[idx] :
 				(id == SYSC_DVFS_CAM) ? volt_table_cam_v2[idx] :
+				NULL);
+		Assert(p_table != NULL);
+	} else if (cal_get_table_ver() <= 8) {	/* table ver 6, 7, 8 */
+		p_table = ((id == SYSC_DVFS_EGL) ? volt_table_egl_v3[idx] :
+				(id == SYSC_DVFS_KFC) ? volt_table_kfc_v3[idx] :
+				(id == SYSC_DVFS_G3D) ? volt_table_g3d_v3[idx] :
+				(id == SYSC_DVFS_MIF) ? volt_table_mif_v3[idx] :
+				(id == SYSC_DVFS_INT) ? volt_table_int_v3[idx] :
+				(id == SYSC_DVFS_CAM) ? volt_table_cam_v3[idx] :
 				NULL);
 		Assert(p_table != NULL);
 	}
@@ -357,13 +373,21 @@ u32 cal_get_freq(u32 id, s32 level)
 				(id == SYSC_DVFS_INT) ? volt_table_int_v1[idx][0] :
 				(id == SYSC_DVFS_CAM) ? volt_table_cam_v1[idx][0] :
 				0);
-	} else {	/* table ver 5 */
+	} else if (cal_get_table_ver() == 5) {	/* table ver 5 */
 		freq = ((id == SYSC_DVFS_EGL) ? volt_table_egl_v2[idx][0] :
 				(id == SYSC_DVFS_KFC) ? volt_table_kfc_v2[idx][0] :
 				(id == SYSC_DVFS_G3D) ? volt_table_g3d_v2[idx][0] :
 				(id == SYSC_DVFS_MIF) ? volt_table_mif_v2[idx][0] :
 				(id == SYSC_DVFS_INT) ? volt_table_int_v2[idx][0] :
 				(id == SYSC_DVFS_CAM) ? volt_table_cam_v2[idx][0] :
+				0);
+	} else if (cal_get_table_ver() <= 8) { /* table ver 6, 7, 8 */
+		freq = ((id == SYSC_DVFS_EGL) ? volt_table_egl_v3[idx][0] :
+				(id == SYSC_DVFS_KFC) ? volt_table_kfc_v3[idx][0] :
+				(id == SYSC_DVFS_G3D) ? volt_table_g3d_v3[idx][0] :
+				(id == SYSC_DVFS_MIF) ? volt_table_mif_v3[idx][0] :
+				(id == SYSC_DVFS_INT) ? volt_table_int_v3[idx][0] :
+				(id == SYSC_DVFS_CAM) ? volt_table_cam_v3[idx][0] :
 				0);
 	}
 
@@ -375,7 +399,9 @@ u32 cal_get_abb(u32 id, s32 level)
 	u32 match_abb;
 	u32 asv_grp;
 	u32 min_lvl = cal_get_min_lv(id);
-	const u32 *p_table;
+	u32 is_fs_abb = cal_get_fs_abb();
+	u32 fs_abb;
+	const u32 *p_table = NULL;
 	u32 idx;
 
 	Assert(level >= 0);
@@ -399,12 +425,19 @@ u32 cal_get_abb(u32 id, s32 level)
 				(id == SYSC_DVFS_MIF) ? abb_table_mif_v1[idx] :
 				(id == SYSC_DVFS_INT) ? abb_table_int_v1[idx] :
 				NULL);
-	} else {
+	} else if (cal_get_table_ver() == 5) {
 		p_table = ((id == SYSC_DVFS_EGL) ? abb_table_egl_v2[idx] :
 				(id == SYSC_DVFS_KFC) ? abb_table_kfc_v2[idx] :
 				(id == SYSC_DVFS_G3D) ? abb_table_g3d_v2[idx] :
 				(id == SYSC_DVFS_MIF) ? abb_table_mif_v2[idx] :
 				(id == SYSC_DVFS_INT) ? abb_table_int_v2[idx] :
+				NULL);
+	} else if (cal_get_table_ver() <= 8) {
+		p_table = ((id == SYSC_DVFS_EGL) ? abb_table_egl_v3[idx] :
+				(id == SYSC_DVFS_KFC) ? abb_table_kfc_v3[idx] :
+				(id == SYSC_DVFS_G3D) ? abb_table_g3d_v3[idx] :
+				(id == SYSC_DVFS_MIF) ? abb_table_mif_v3[idx] :
+				(id == SYSC_DVFS_INT) ? abb_table_int_v3[idx] :
 				NULL);
 	}
 
@@ -412,8 +445,25 @@ u32 cal_get_abb(u32 id, s32 level)
 	if (p_table == NULL)
 		return 0;
 
-	asv_grp = cal_get_asv_grp(id, level);
-	match_abb = p_table[asv_grp + 1];
+	if (is_fs_abb) {
+		if (id == SYSC_DVFS_EGL)
+			fs_abb = GetBits(CHIPID_ASV_TBL_BASE + 0x0010, 0, 0xF);
+		else if (id == SYSC_DVFS_KFC)
+			fs_abb = GetBits(CHIPID_ASV_TBL_BASE + 0x0010, 4, 0xF);
+		else if (id == SYSC_DVFS_G3D)
+			fs_abb = GetBits(CHIPID_ASV_TBL_BASE + 0x0010, 8, 0xF);
+		else if (id == SYSC_DVFS_MIF)
+			fs_abb = GetBits(CHIPID_ASV_TBL_BASE + 0x0010, 12, 0xF);
+		else if (id == SYSC_DVFS_INT)
+			fs_abb = GetBits(CHIPID_ASV_TBL_BASE + 0x0010, 16, 0xF);
+		else
+			fs_abb = ABB_BYPASS;
+
+		match_abb = fs_abb;
+	} else {
+		asv_grp = cal_get_asv_grp(id, level);
+		match_abb = p_table[asv_grp + 1];
+	}
 
 	return match_abb;
 }
@@ -447,11 +497,20 @@ bool cal_use_dynimic_ema(u32 id)
 void cal_set_ema(u32 id, u32 setvolt)
 {
 	if (id == SYSC_DVFS_EGL && dynimic_ema_egl1) {
-		u32 value = (setvolt <= 900000) ? dynimic_ema_egl1 : 2;
-		u32 tmp = __raw_readl(SYSREG_EGL_BASE + 0x330);
+		u32 value = (setvolt <= 900000) ? dynimic_ema_egl2 : dynimic_ema_egl1;
+		u32 tmp;
+		if (value == 0) value = 2;
+		tmp = __raw_readl(SYSREG_EGL_BASE + 0x330);
 		tmp &= ~(7 << 20 | 7 << 8);
-		tmp |= ~(value << 20 | value << 8);
+		tmp |= (value << 20 | value << 8);
 		__raw_writel(tmp, SYSREG_EGL_BASE + 0x330);
 	}
 }
 
+u32 is_max_limit_sample(void)
+{
+	if (__raw_readl(S5P_VA_CHIPID2 + 0x3C) & 0x00200000)
+		return 1;
+
+	return 0;
+}

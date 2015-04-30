@@ -229,7 +229,7 @@ static ssize_t store_power_domain_test(struct device *dev, struct device_attribu
 {
 	int test_name;
 
-	if (!sscanf(buf, "%d", &test_name))
+	if (!sscanf(buf, "%1d", &test_name))
 		return -EINVAL;
 
 	switch (test_name) {

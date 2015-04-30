@@ -20,6 +20,15 @@
 #ifdef CONFIG_EXYNOS_MIPI_LLI
 #include <linux/mipi-lli.h>
 #endif
+#ifdef CONFIG_SEC_PM
+#include <linux/moduleparam.h>
+#endif
+#include <linux/sec_debug.h>
+
+#if defined(CONFIG_MUIC_NOTIFIER) && !defined(CONFIG_SEC_FACTORY)
+#include <linux/muic/muic.h>
+#include <linux/muic/muic_notifier.h>
+#endif
 
 #include <asm/suspend.h>
 #include <asm/tlbflush.h>
@@ -32,6 +41,7 @@
 #include <mach/exynos-pm.h>
 #include <mach/pmu_cal_sys.h>
 #include <mach/cpuidle_profiler.h>
+#include <mach/devfreq.h>
 
 #ifdef CONFIG_SND_SAMSUNG_AUDSS
 #include <sound/exynos.h>
@@ -43,6 +53,7 @@
 #define REG_DIRECTGO_FLAG	(S5P_VA_SYSRAM_NS + 0x20)
 
 #define EXYNOS_CHECK_DIRECTGO	0xFCBA0D10
+#define EXYNOS_CHECK_C2		0xABAC0000
 #define EXYNOS_CHECK_LPA	0xABAD0000
 #define EXYNOS_CHECK_DSTOP	0xABAE0000
 
@@ -51,14 +62,70 @@
 #define CTRL_LOCK_VALUE_SHIFT   (0x8)
 #define CTRL_LOCK_VALUE_MASK    (0x1FF)
 
+#ifdef CONFIG_SEC_PM
+#define CPUIDLE_ENABLE_MASK (ENABLE_C2 | ENABLE_C3_AFTR | ENABLE_C3_LPA | ENABLE_C3_DSTOP)
+
+static enum {
+	ENABLE_C2	= BIT(0),
+	ENABLE_C3_AFTR	= BIT(1),
+	ENABLE_C3_LPA	= BIT(2),
+	ENABLE_C3_DSTOP	= BIT(3),
+} enable_mask = CPUIDLE_ENABLE_MASK;
+
+DEFINE_SPINLOCK(enable_mask_lock);
+
+static int set_enable_mask(const char *val, const struct kernel_param *kp)
+{
+	int rv = param_set_uint(val, kp);
+	unsigned long flags;
+
+	pr_info("%s: val=%s, enable_maks=%d\n", __func__, val, enable_mask);
+
+	if (rv)
+		return rv;
+
+	spin_lock_irqsave(&enable_mask_lock, flags);
+
+	if (!(enable_mask & ENABLE_C2)) {
+		unsigned int cpuid = smp_processor_id();
+		int i;
+		for_each_online_cpu(i) {
+			if (i == cpuid)
+				continue;
+			arch_send_wakeup_ipi_mask(cpumask_of(i));
+		}
+	}
+
+	spin_unlock_irqrestore(&enable_mask_lock, flags);
+
+	return 0;
+}
+
+static struct kernel_param_ops enable_mask_param_ops = {
+	.set = set_enable_mask,
+	.get = param_get_uint,
+};
+
+module_param_cb(enable_mask, &enable_mask_param_ops, &enable_mask, 0644);
+MODULE_PARM_DESC(enable_mask, "bitmask for C state - C2, AFTR, LPA, DSTOP");
+#endif /* CONFIG_SEC_PM */
+
+#ifdef CONFIG_SEC_PM_DEBUG
+unsigned int log_en;
+module_param_named(log_en, log_en, uint, 0644);
+#endif /* CONFIG_SEC_PM_DEBUG */
+
 #if defined (CONFIG_EXYNOS_CLUSTER_POWER_DOWN)
 static spinlock_t c2_state_lock;
-static DEFINE_PER_CPU(int, in_c2_state);
 
-#define CLUSTER_OFF_TARGET_RESIDENCY	3400
+#define CLUSTER_OFF_TARGET_RESIDENCY	3000
 
 #define L2_OFF		(1 << 0)
 #define L2_CCI_OFF	(1 << 1)
+#define CMU_OFF		(1 << 2)
+#if defined(CONFIG_ARM_EXYNOS5433_BUS_DEVFREQ)
+#define MIF_LIMIT	(0)
+#endif
 #endif
 
 static int exynos_enter_idle(struct cpuidle_device *dev,
@@ -85,7 +152,6 @@ struct check_reg_lpa {
 
 static struct check_reg_lpa exynos5_power_domain[] = {
 	{.check_reg = EXYNOS5433_GSCL_STATUS,	.check_bit = 0x7},	/* 0x4004 */
-	{.check_reg = EXYNOS5433_ISP_STATUS,	.check_bit = 0x7},	/* 0x4144 */
 	{.check_reg = EXYNOS5433_CAM0_STATUS,	.check_bit = 0x7},	/* 0x4024 */
 	{.check_reg = EXYNOS5433_CAM1_STATUS,	.check_bit = 0x7},	/* 0x40A4 */
 	{.check_reg = EXYNOS5433_MFC_STATUS,	.check_bit = 0x7},	/* 0x4184 */
@@ -96,6 +162,17 @@ static struct check_reg_lpa exynos5_power_domain[] = {
 
 static struct check_reg_lpa exynos5_dstop_power_domain[] = {
 	{.check_reg = EXYNOS5433_AUD_STATUS,	.check_bit = 0xF},	/* 0x40C4 */
+};
+
+static struct check_reg_lpa exynos5_none_domain[] = {
+	{.check_reg = EXYNOS5433_ISP_STATUS,	.check_bit = 0xF},	/* 0x4144 */
+};
+
+static struct check_reg_lpa exynos5_lpc_power_domain[] = {
+	{.check_reg = EXYNOS5433_G2D_STATUS,	.check_bit = 0xF},	/* 0x4124 */
+	{.check_reg = EXYNOS5433_CAM0_STATUS,	.check_bit = 0xF},	/* 0x4024 */
+	{.check_reg = EXYNOS5433_CAM1_STATUS,	.check_bit = 0xF},	/* 0x40A4 */
+	{.check_reg = EXYNOS5433_GSCL_STATUS,	.check_bit = 0xF},	/* 0x4004 */
 };
 
 /*
@@ -115,6 +192,10 @@ extern int samsung_usbphy_check_op(void);
 extern void samsung_usb_lpa_resume(void);
 #endif
 
+#if defined(CONFIG_GPS_BCMxxxxx) && !defined(CONFIG_GPS_BCM4773)
+extern int check_gps_op(void);
+#endif
+
 #if defined(CONFIG_MMC_DW)
 extern int dw_mci_exynos_request_status(void);
 #endif
@@ -128,6 +209,9 @@ extern void exynos_pci_lpa_resume(void);
 extern int check_bt_op(void);
 #endif
 
+#ifdef CONFIG_EXYNOS_DECON_TV_DISPLAY
+extern int check_decon_tv_op(void);
+#endif
 
 static int exynos_check_reg_status(struct check_reg_lpa *reg_list,
 				    unsigned int list_cnt)
@@ -144,24 +228,134 @@ static int exynos_check_reg_status(struct check_reg_lpa *reg_list,
 	return 0;
 }
 
+#define UART_CLK_MASK	0x7
+#define UART_CLK_SHIFT	12
+
+static inline bool dbg_uart_clk_is_on(void)
+{
+	u32 val = (__raw_readl(EXYNOS5430_ENABLE_IP_PERIC0) >> UART_CLK_SHIFT)
+		& UART_CLK_MASK;
+	return (val >> CONFIG_S3C_LOWLEVEL_UART_PORT) & 0x1;
+}
+
+#define UFSTAT_REG_OFFSET	0x18
+#define UFSTAT_TXMASK	0xFF
+#define UFSTAT_TXSHIFT	16
+
+static inline int dbg_uart_tx_fifo_cnt(void)
+{
+	u32 val = __raw_readl(S5P_VA_UART(CONFIG_S3C_LOWLEVEL_UART_PORT) +
+			UFSTAT_REG_OFFSET);
+
+	return (val >> UFSTAT_TXSHIFT) & UFSTAT_TXMASK;
+}
+
 static int exynos_uart_fifo_check(void)
 {
-	unsigned int ret;
-	unsigned int check_val;
+	if (dbg_uart_clk_is_on())
+		return dbg_uart_tx_fifo_cnt();
 
-	ret = 0;
-
-	/* Check UART for console is empty */
-	check_val = __raw_readl(S5P_VA_UART(CONFIG_S3C_LOWLEVEL_UART_PORT) +
-				0x18);
-
-	ret = ((check_val >> 16) & 0xff);
-
-	return ret;
+	return 0;
 }
+
+#if defined(CONFIG_PWM_SAMSUNG)
+extern int pwm_check_enable_cnt(void);
+#else
+static inline int pwm_check_enable_cnt(void)
+{
+	return 0;
+}
+#endif
+
+#if defined(CONFIG_SEC_FACTORY)
+static int is_jig_attached(void)
+{
+	return 1;
+}
+#else
+static bool muic_is_attached = false;
+static int is_jig_attached(void)
+{
+	return muic_is_attached;
+}
+#endif
+
+static int exynos_check_lpc(void)
+{
+	if (is_jig_attached())
+		return 1;
+	/* If MIF is  max clock, don't enter lpc mode */
+#if defined(CONFIG_ARM_EXYNOS5433_BUS_DEVFREQ)
+	if (exynos5_devfreq_get_mif_level() <= MIF_LIMIT)
+		return 1;
+#endif
+
+	/* Check clock gating */
+	if (exynos_check_reg_status(exynos5_clock_gating,
+				ARRAY_SIZE(exynos5_clock_gating)))
+		return 1;
+
+#if defined(CONFIG_MMC_DW)
+	if (dw_mci_exynos_request_status())
+		return 1;
+#endif
+
+#ifdef CONFIG_EXYNOS_MIPI_LLI
+	if (mipi_lli_get_link_status())
+		return 1;
+#endif
+
+#ifdef CONFIG_SAMSUNG_USBPHY
+	if (samsung_usbphy_check_op())
+		return 1;
+#endif
+
+#ifdef CONFIG_PCI_EXYNOS
+	if (check_wifi_op())
+		return EXYNOS_CHECK_DIDLE;
+#endif
+
+#ifdef CONFIG_EXYNOS_DECON_TV_DISPLAY
+	if (check_decon_tv_op())
+		return 1;
+#endif
+
+#if 0
+#if defined(CONFIG_GPS_BCMxxxxx)
+	if (check_gps_op())
+		return 1;
+#endif
+#endif
+
+#if defined(CONFIG_VIDEO_EXYNOS_FIMG2D)
+	if (exynos_check_reg_status(exynos5_lpc_power_domain,
+				ARRAY_SIZE(exynos5_lpc_power_domain)))
+		return 1;
+#endif
+	if (pwm_check_enable_cnt())
+		return 1;
+
+#if defined(CONFIG_SND_SAMSUNG_AUDSS)
+	if (exynos_check_aud_pwr() > AUD_PWR_LPC)
+		return 1;
+#endif
+
+	return 0;
+}
+
 
 static int exynos_check_enter_mode(void)
 {
+#ifdef CONFIG_SEC_PM
+	if (!(enable_mask & (ENABLE_C3_LPA | ENABLE_C3_DSTOP)))
+		return EXYNOS_CHECK_DIDLE;
+#endif
+
+	/* Check power domain */
+	if (exynos_check_reg_status(exynos5_none_domain,
+			    ARRAY_SIZE(exynos5_none_domain)))
+		return EXYNOS_CHECK_C2;
+
 	/* Check power domain */
 	if (exynos_check_reg_status(exynos5_power_domain,
 			    ARRAY_SIZE(exynos5_power_domain)))
@@ -197,12 +391,32 @@ static int exynos_check_enter_mode(void)
 		return EXYNOS_CHECK_DIDLE;
 #endif
 
+#if defined(CONFIG_GPS_BCMxxxxx) && !defined(CONFIG_GPS_BCM4773)
+	if (check_gps_op())
+		return EXYNOS_CHECK_DIDLE;
+#endif
+
 	/* Check power domain for DSTOP */
 	if (exynos_check_reg_status(exynos5_dstop_power_domain,
-			    ARRAY_SIZE(exynos5_dstop_power_domain)))
+			    ARRAY_SIZE(exynos5_dstop_power_domain))) {
+#ifdef CONFIG_SEC_PM
+		if (enable_mask & ENABLE_C3_LPA)
+			return EXYNOS_CHECK_LPA;
+		else
+			return EXYNOS_CHECK_DIDLE;
+#else
 		return EXYNOS_CHECK_LPA;
+#endif
+	}
 
+#ifdef CONFIG_SEC_PM
+	if (enable_mask & ENABLE_C3_DSTOP)
+		return EXYNOS_CHECK_DSTOP;
+	else
+		return EXYNOS_CHECK_LPA;
+#else
 	return EXYNOS_CHECK_DSTOP;
+#endif
 }
 
 static struct cpuidle_state exynos5_cpuidle_set[] __initdata = {
@@ -217,14 +431,22 @@ static struct cpuidle_state exynos5_cpuidle_set[] __initdata = {
 	[1] = {
 #if defined (CONFIG_EXYNOS_CPUIDLE_C2)
 		.enter                  = exynos_enter_c2,
-		.exit_latency           = 30,
-		.target_residency       = 2100,
+		.exit_latency           = 20,
+		.target_residency       = 750,
 		.flags                  = CPUIDLE_FLAG_TIME_VALID,
 		.name                   = "C2",
-		.desc                   = "ARM power down",
+		.desc                   = "Little power down",
+	},
+	[2] = {
+		.enter                  = exynos_enter_c2,
+		.exit_latency           = 30,
+		.target_residency       = 2000,
+		.flags                  = CPUIDLE_FLAG_TIME_VALID,
+		.name                   = "C2.1",
+		.desc                   = "big power down",
 	},
 #if defined (CONFIG_EXYNOS_CLUSTER_POWER_DOWN)
-	[2] = {
+	[3] = {
 		.enter                  = exynos_enter_c2,
 		.exit_latency           = 300,
 		.target_residency       = CLUSTER_OFF_TARGET_RESIDENCY,
@@ -232,9 +454,9 @@ static struct cpuidle_state exynos5_cpuidle_set[] __initdata = {
 		.name                   = "C2-1",
 		.desc                   = "Cluster power down",
 	},
-	[3] = {
+	[4] = {
 #else
-	[2] = {
+	[3] = {
 #endif
 #endif
 		.enter                  = exynos_enter_lowpower,
@@ -293,17 +515,30 @@ static int idle_finisher(unsigned long flags)
 }
 
 #if defined (CONFIG_EXYNOS_CPUIDLE_C2)
+struct cpumask cpu_c2_state;
+
 static int c2_finisher(unsigned long flags)
 {
+	unsigned int kind = OP_TYPE_CORE;
+	unsigned int param = 0;
+	unsigned int cpuid = smp_processor_id();
+
 	exynos_smc(SMC_CMD_SAVE, OP_TYPE_CORE, SMC_POWERSTATE_IDLE, 0);
 
 #if defined (CONFIG_EXYNOS_CLUSTER_POWER_DOWN)
-	if (flags == L2_CCI_OFF) {
+	if (flags & L2_CCI_OFF) {
 		exynos_cpu_sequencer_ctrl(true);
-		exynos_smc(SMC_CMD_SHUTDOWN, OP_TYPE_CLUSTER, SMC_POWERSTATE_IDLE, flags);
-	} else
+		kind = OP_TYPE_CLUSTER;
+		sec_debug_task_log_msg(cpuid, "clstr");	/* early wakeup */
+	}
 #endif
-		exynos_smc(SMC_CMD_SHUTDOWN, OP_TYPE_CORE, SMC_POWERSTATE_IDLE, 0);
+
+	if (flags & CMU_OFF) {
+		param = 1;
+		sec_debug_task_log_msg(cpuid, "lpc");	/* early wakeup */
+	}
+
+	exynos_smc(SMC_CMD_SHUTDOWN, kind, SMC_POWERSTATE_IDLE, param);
 
 	/*
 	 * Secure monitor disables the SMP bit and takes the CPU out of the
@@ -342,6 +577,11 @@ static int exynos_enter_core0_aftr(struct cpuidle_device *dev,
 	unsigned int ret = 0;
 	unsigned int cpuid = smp_processor_id();
 
+#ifdef CONFIG_SEC_PM_DEBUG
+	if (unlikely(log_en & ENABLE_C3_AFTR))
+		pr_info("+++aftr\n");
+#endif
+
 	exynos_set_wakeupmask(SYS_AFTR);
 
 	/* Set value of power down register for aftr mode */
@@ -378,6 +618,10 @@ static int exynos_enter_core0_aftr(struct cpuidle_device *dev,
 	/* Clear wakeup state register */
 	exynos_clear_wakeupmask();
 
+#ifdef CONFIG_SEC_PM_DEBUG
+	if (unlikely(log_en & ENABLE_C3_AFTR))
+		pr_info("---aftr\n");
+#endif
 	return index;
 }
 
@@ -419,7 +663,6 @@ static struct sleep_save exynos5_lpa_clk_save[] = {
 	SAVE_ITEM(EXYNOS5430_SRC_SEL_MIF3),
 	SAVE_ITEM(EXYNOS5430_SRC_SEL_MIF4),
 	SAVE_ITEM(EXYNOS5430_SRC_SEL_MIF5),
-	SAVE_ITEM(EXYNOS5430_SRC_SEL_BUS2),
 
 	SAVE_ITEM(EXYNOS5430_DIV_EGL0),
 	SAVE_ITEM(EXYNOS5430_DIV_EGL1),
@@ -462,6 +705,12 @@ static struct sleep_save exynos5_lpa_clk_save[] = {
 	SAVE_ITEM(EXYNOS5430_ENABLE_IP_PERIC0),
 	SAVE_ITEM(EXYNOS5430_ENABLE_IP_MIF1),
 	SAVE_ITEM(EXYNOS5430_ENABLE_IP_CPIF0),
+
+	SAVE_ITEM(EXYNOS5430_ENABLE_ACLK_MIF3),
+	SAVE_ITEM(EXYNOS5430_ENABLE_ACLK_TOP),
+	SAVE_ITEM(EXYNOS5430_ENABLE_SCLK_FSYS),
+	SAVE_ITEM(EXYNOS5430_SRC_SEL_BUS2),
+	SAVE_ITEM(EXYNOS5430_SRC_SEL_FSYS0),
 };
 
 static struct sleep_save exynos5_set_clksrc[] = {
@@ -474,17 +723,23 @@ static struct sleep_save exynos5_set_clksrc[] = {
 	{ .reg = EXYNOS5430_ENABLE_IP_CPIF0,	.val = 0x000FF000, },
 };
 
-#ifdef CONFIG_PCI_EXYNOS
-extern int exynos_fsys_power_on(void);
-extern int exynos_fsys_power_off(void);
-#endif
-
 static int exynos_enter_core0_lpa(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv,
 				int lp_mode, int index, int enter_mode)
 {
 	int ret = 0;
 	unsigned int cpuid = smp_processor_id();
+	unsigned int tmp;
+
+#ifdef CONFIG_SEC_PM_DEBUG
+	if (unlikely(log_en & ENABLE_C3_LPA)) {
+		if (enter_mode == EXYNOS_CHECK_LPA)
+			pr_info("+++lpa\n");
+	} else if (unlikely(log_en & ENABLE_C3_DSTOP)) {
+		if (enter_mode != EXYNOS_CHECK_LPA)
+			pr_info("+++dstop\n");
+	}
+#endif
 
 	/* Set value of power down register for aftr mode */
 	if (enter_mode == EXYNOS_CHECK_LPA) {
@@ -503,6 +758,9 @@ static int exynos_enter_core0_lpa(struct cpuidle_device *dev,
 
 	set_boot_flag(cpuid, C2_STATE);
 
+	exynos_lpa_enter();
+	cpu_pm_enter();
+
 	do {
 		/* Waiting for flushing UART fifo */
 	} while (exynos_uart_fifo_check());
@@ -512,8 +770,19 @@ static int exynos_enter_core0_lpa(struct cpuidle_device *dev,
 	exynos_idle_clock_down(false, KFC);
 #endif
 
-	if (lp_mode == SYS_ALPA)
-		__raw_writel(0x1, EXYNOS5433_PMU_SYNC_CTRL);
+	if (lp_mode == SYS_ALPA) {
+		tmp = __raw_readl(EXYNOS5433_PMU_SYNC_CTRL);
+		tmp |= (1 << 0);
+		__raw_writel(tmp, EXYNOS5433_PMU_SYNC_CTRL);
+
+		tmp = __raw_readl(EXYNOS_CENTRAL_SEQ_MIF_OPTION);
+		tmp |= (1 << 5);
+		__raw_writel(tmp, EXYNOS_CENTRAL_SEQ_MIF_OPTION);
+
+		tmp = __raw_readl(EXYNOS5433_WAKEUP_MASK_MIF);
+		tmp &= ~(1 << 4);
+		__raw_writel(tmp, EXYNOS5433_WAKEUP_MASK_MIF);
+	}
 
 	/* Backup clock SFR which is reset after wakeup from LPA mode */
 	s3c_pm_do_save(exynos5_lpa_clk_save, ARRAY_SIZE(exynos5_lpa_clk_save));
@@ -522,17 +791,31 @@ static int exynos_enter_core0_lpa(struct cpuidle_device *dev,
 	s3c_pm_do_restore_core(exynos5_set_clksrc,
 			       ARRAY_SIZE(exynos5_set_clksrc));
 
-	cpu_pm_enter();
-	exynos_lpa_enter();
+	/* Before enter central sequence mode, MPHY_PLL should be enable */
+	tmp = __raw_readl(EXYNOS5430_MPHY_PLL_CON0);
+	tmp |= (1 << 31);
+	__raw_writel(tmp, EXYNOS5430_MPHY_PLL_CON0);
+
+	tmp = __raw_readl(EXYNOS5430_SRC_SEL_FSYS0);
+	tmp &= ~(1 << 0);
+	__raw_writel(tmp, EXYNOS5430_SRC_SEL_FSYS0);
+
+	tmp = __raw_readl(EXYNOS5430_SRC_SEL_BUS2);
+	tmp &= ~(1 << 0);
+	__raw_writel(tmp, EXYNOS5430_SRC_SEL_BUS2);
+
+	__raw_writel(0, EXYNOS5430_ENABLE_SCLK_FSYS);
+
+	tmp = __raw_readl(EXYNOS5430_ENABLE_ACLK_TOP);
+	tmp &= ~(1 << 18);
+	__raw_writel(tmp, EXYNOS5430_ENABLE_ACLK_TOP);
+
+	tmp = __raw_readl(EXYNOS5430_ENABLE_ACLK_MIF3);
+	tmp &= ~(1 << 4);
+	__raw_writel(tmp, EXYNOS5430_ENABLE_ACLK_MIF3);
 
 	ret = cpu_suspend(0, idle_finisher);
 	if (ret) {
-#ifdef CONFIG_PCI_EXYNOS
-		/* If happen early wakeu, it is need to reset FSYS */
-		exynos_fsys_power_off();
-		mdelay(1);
-		exynos_fsys_power_on();
-#endif
 		exynos_central_sequencer_ctrl(false);
 
 		goto early_wakeup;
@@ -556,23 +839,33 @@ static int exynos_enter_core0_lpa(struct cpuidle_device *dev,
 	__raw_writel((1 << 28), EXYNOS5433_PAD_RETENTION_FSYSGENIO_OPTION);
 
 early_wakeup:
-	exynos_lpa_exit();
-	cpu_pm_exit();
-
-#ifdef CONFIG_SAMSUNG_USBPHY
-	samsung_usb_lpa_resume();
-#endif
-
 	/* Restore clock SFR with which is saved before enter LPA mode */
 	s3c_pm_do_restore_core(exynos5_lpa_clk_save,
 			       ARRAY_SIZE(exynos5_lpa_clk_save));
 
-	if (lp_mode == SYS_ALPA)
-		__raw_writel(0x0, EXYNOS5433_PMU_SYNC_CTRL);
+	if (lp_mode == SYS_ALPA) {
+		tmp = __raw_readl(EXYNOS5433_PMU_SYNC_CTRL);
+		tmp &= ~(1 << 0);
+		__raw_writel(tmp, EXYNOS5433_PMU_SYNC_CTRL);
+
+		tmp = __raw_readl(EXYNOS_CENTRAL_SEQ_MIF_OPTION);
+		tmp &= ~(1 << 5);
+		__raw_writel(tmp, EXYNOS_CENTRAL_SEQ_MIF_OPTION);
+
+		tmp = __raw_readl(EXYNOS5433_WAKEUP_MASK_MIF);
+		tmp |= (1 << 4);
+		__raw_writel(tmp, EXYNOS5433_WAKEUP_MASK_MIF);
+	}
 
 #ifdef CONFIG_EXYNOS_IDLE_CLOCK_DOWN
 	exynos_idle_clock_down(true, ARM);
 	exynos_idle_clock_down(true, KFC);
+#endif
+	cpu_pm_exit();
+	exynos_lpa_exit();
+
+#ifdef CONFIG_SAMSUNG_USBPHY
+	samsung_usb_lpa_resume();
 #endif
 
 #if defined(CONFIG_EXYNOS_MIPI_LLI)
@@ -590,6 +883,15 @@ early_wakeup:
 	/* Clear wakeup state register */
 	exynos_clear_wakeupmask();
 
+#ifdef CONFIG_SEC_PM_DEBUG
+	if (unlikely(log_en & ENABLE_C3_LPA)) {
+		if (enter_mode == EXYNOS_CHECK_LPA)
+			pr_info("---lpa\n");
+	} else if (unlikely(log_en & ENABLE_C3_DSTOP)) {
+		if (enter_mode != EXYNOS_CHECK_LPA)
+			pr_info("---dstop\n");
+	}
+#endif
 	return index;
 }
 
@@ -602,26 +904,39 @@ static int exynos_enter_lowpower(struct cpuidle_device *dev,
 
 	/* This mode only can be entered when other core's are offline */
 	if (num_online_cpus() > 1)
+		goto idle;
+
+	enter_mode = exynos_check_enter_mode();
+#ifdef CONFIG_SEC_PM
+	if (enter_mode == EXYNOS_CHECK_C2) {
+		goto idle;
+	} else if (enter_mode == EXYNOS_CHECK_DIDLE) {
+		if (enable_mask & ENABLE_C3_AFTR)
+			return exynos_enter_core0_aftr(dev, drv, new_index);
+		else
+			goto idle;
+	}
+#endif
+	if (enter_mode == EXYNOS_CHECK_C2)
+		goto idle;
+	else if (enter_mode == EXYNOS_CHECK_DIDLE)
+		return exynos_enter_core0_aftr(dev, drv, new_index);
+#ifdef CONFIG_SND_SAMSUNG_AUDSS
+	else if (exynos_check_aud_pwr() == AUD_PWR_ALPA)
+		return exynos_enter_core0_aftr(dev, drv, new_index);
+	else
+#endif
+		return exynos_enter_core0_lpa(dev, drv, SYS_LPA, new_index, enter_mode);
+idle:
 #if defined (CONFIG_EXYNOS_CPUIDLE_C2)
 #if defined (CONFIG_EXYNOS_CLUSTER_POWER_DOWN)
-		return exynos_enter_c2(dev, drv, 2);
+		return exynos_enter_c2(dev, drv, 3);
 #else
-		return exynos_enter_c2(dev, drv, 1);
+		return exynos_enter_c2(dev, drv, 2);
 #endif
 #else
 		return exynos_enter_idle(dev, drv, 0);
 #endif
-
-	enter_mode = exynos_check_enter_mode();
-
-	if (enter_mode == EXYNOS_CHECK_DIDLE)
-		return exynos_enter_core0_aftr(dev, drv, new_index);
-#ifdef CONFIG_SND_SAMSUNG_AUDSS
-	else if (exynos_check_aud_pwr() == AUD_PWR_ALPA)
-		return exynos_enter_core0_lpa(dev, drv, SYS_ALPA, new_index, enter_mode);
-	else
-#endif
-		return exynos_enter_core0_lpa(dev, drv, SYS_LPA, new_index, enter_mode);
 }
 
 #if defined (CONFIG_EXYNOS_CPUIDLE_C2)
@@ -635,53 +950,62 @@ static void exynos_disable_c3_idle(bool disable)
 }
 #endif
 
-static int can_enter_cluster_off(int cpu_id)
+#ifdef CONFIG_EXYNOS_DECON_DISPLAY
+extern unsigned int *ref_power_status;
+enum s3c_fb_pm_status {
+	POWER_ON = 0,
+	POWER_DOWN = 1,
+	POWER_HIBER_DOWN = 2,
+};
+#endif
+
+static __maybe_unused int check_matched_state(int cpu_id, struct cpumask *matched_state, const struct cpumask *cpu_group)
 {
-#if defined(CONFIG_SCHED_HMP)
 	ktime_t now = ktime_get();
 	struct clock_event_device *dev;
 	int cpu;
 
-#ifdef CONFIG_ARM_EXYNOS_MP_CPUFREQ
 	if (disabled_cluster_power_down)
 		return 0;
-#endif
 
-	for_each_cpu_and(cpu, cpu_possible_mask, cpu_coregroup_mask(cpu_id)) {
+	for_each_cpu_and(cpu, cpu_possible_mask, cpu_group) {
 		if (cpu_id == cpu)
 			continue;
 
 		dev = per_cpu(tick_cpu_device, cpu).evtdev;
-		if (!(per_cpu(in_c2_state, cpu)))
+		if (!cpumask_test_cpu(cpu, matched_state))
 			return 0;
 
-		if(ktime_to_us(ktime_sub(dev->next_event, now)) < CLUSTER_OFF_TARGET_RESIDENCY)
+		if (ktime_to_us(ktime_sub(dev->next_event, now)) < CLUSTER_OFF_TARGET_RESIDENCY)
 			return 0;
 	}
 	return 1;
-#else
-	return 0;
-#endif
 }
 
 static unsigned long exynos_cluster_power_down(bool pwr_down, unsigned int cpuid,
 								bool early_wakeup)
 {
 	unsigned long flags = 0;
-
-	if (!(cpuid & 0x4))
-		return 0;
-
 	spin_lock(&c2_state_lock);
 
 	if (pwr_down) {
-		per_cpu(in_c2_state, cpuid) = 1;
-		if (can_enter_cluster_off(cpuid)) {
-			flags = L2_CCI_OFF;
+		cpumask_set_cpu(cpuid, &cpu_c2_state);
+		if ((cpuid & 0x4) && check_matched_state(cpuid, &cpu_c2_state, cpu_coregroup_mask(cpuid))) {
+			flags |= L2_CCI_OFF;
 			cpuidle_profile_start(CPUIDLE_PROFILE_CPD, cpuid);
 		}
+		if (check_matched_state(cpuid, &cpu_c2_state, cpu_possible_mask) && !exynos_check_lpc()
+#ifdef CONFIG_EXYNOS_DECON_DISPLAY
+				&& ref_power_status != NULL && (*ref_power_status) == POWER_HIBER_DOWN
+#endif
+			) {
+				do {
+				/* Waiting for flushing UART fifo */
+				} while (exynos_uart_fifo_check());
+				flags |= CMU_OFF;
+		}
 	} else {
-		per_cpu(in_c2_state, cpuid) = 0;
+		cpumask_clear_cpu(cpuid, &cpu_c2_state);
 		cpuidle_profile_finish(CPUIDLE_PROFILE_CPD, cpuid, early_wakeup);
 	}
 
@@ -702,16 +1026,31 @@ static int exynos_enter_c2(struct cpuidle_device *dev,
 	unsigned int cpuid = smp_processor_id();
 	unsigned long flags = 0;
 
+	if (index == 1 && (cpuid&0x4)) {
+		return exynos_enter_idle(dev, drv, 0);
+	}
+
+#ifdef CONFIG_SEC_PM
+	if (!(enable_mask & ENABLE_C2))
+		return exynos_enter_idle(dev, drv, 0);
+#endif
+
+#ifdef CONFIG_SEC_PM_DEBUG
+	if (unlikely(log_en & ENABLE_C2))
+		pr_info("+++c2\n");
+#endif
+
 	__raw_writel(virt_to_phys(s3c_cpu_resume), REG_DIRECTGO_ADDR);
 	__raw_writel(EXYNOS_CHECK_DIRECTGO, REG_DIRECTGO_FLAG);
 
 	set_boot_flag(cpuid, C2_STATE);
+	sec_debug_task_log_msg(cpuid, "c2+");
 	cpu_pm_enter();
 
 	cpuidle_profile_start(CPUIDLE_PROFILE_C2, cpuid);
 
 #if defined (CONFIG_EXYNOS_CLUSTER_POWER_DOWN)
-	if (index == 2)
+	if (index == 3)
 		flags = exynos_cluster_power_down(true, cpuid, 0);
 #endif
 
@@ -721,8 +1060,17 @@ static int exynos_enter_c2(struct cpuidle_device *dev,
 	if (ret)
 		exynos5433_cpu_up(cpuid);
 
+	if (ret)
+		sec_debug_task_log_msg(cpuid, "c2_");	/* early wakeup */
+	else
+		sec_debug_task_log_msg(cpuid, "c2-");	/* normal wakeup */
+
+	/* Disable cpu sequencer as soon as wakeup from local power gating */
+	if (flags & L2_CCI_OFF)
+		exynos_cpu_sequencer_ctrl(false);
+
 #if defined (CONFIG_EXYNOS_CLUSTER_POWER_DOWN)
-	if (index == 2) {
+	if (index == 3) {
 		exynos_cpu_sequencer_ctrl(false);
 		flags = exynos_cluster_power_down(false, cpuid, (bool)ret);
 	}
@@ -733,6 +1081,10 @@ static int exynos_enter_c2(struct cpuidle_device *dev,
 	cpu_pm_exit();
 	clear_boot_flag(cpuid, C2_STATE);
 
+#ifdef CONFIG_SEC_PM_DEBUG
+	if (unlikely(log_en & ENABLE_C2))
+		pr_info("---c2\n");
+#endif
 	return index;
 }
 #endif
@@ -824,7 +1176,7 @@ static int __init exynos_init_cpuidle(void)
 
 		device->state_count = exynos_idle_driver.state_count;
 #if defined (CONFIG_EXYNOS_CLUSTER_POWER_DOWN)
-		per_cpu(in_c2_state, cpu_id) = 0;
+		cpumask_clear(&cpu_c2_state);
 #endif
 
 		/* Eagle will not change idle time correlation factor */
@@ -858,3 +1210,41 @@ static int __init exynos_init_cpuidle(void)
 	return 0;
 }
 device_initcall(exynos_init_cpuidle);
+
+#if defined(CONFIG_MUIC_NOTIFIER) && !defined(CONFIG_SEC_FACTORY)
+struct notifier_block cpuidle_muic_nb;
+
+static int exynos_cpuidle_muic_notifier(struct notifier_block *nb,
+				unsigned long action, void *data)
+{
+	muic_attached_dev_t attached_dev = *(muic_attached_dev_t *)data;
+
+	switch (attached_dev) {
+	case ATTACHED_DEV_JIG_UART_OFF_MUIC:
+	case ATTACHED_DEV_JIG_UART_OFF_VB_MUIC:
+	case ATTACHED_DEV_JIG_UART_OFF_VB_OTG_MUIC:
+	case ATTACHED_DEV_JIG_UART_OFF_VB_FG_MUIC:
+		if (action == MUIC_NOTIFY_CMD_DETACH)
+			muic_is_attached = false;
+		else if (action == MUIC_NOTIFY_CMD_ATTACH)
+			muic_is_attached = true;
+		else
+			pr_err("%s - ACTION Error!\n", __func__);
+		break;
+	default:
+		break;
+	}
+
+	pr_info("%s - action=%ld, attached_dev=%d\n", __func__, action, attached_dev);
+
+	return NOTIFY_DONE;
+}
+
+static int __init exynos_muic_notifier_init(void)
+{
+	return muic_notifier_register(&cpuidle_muic_nb,
+			exynos_cpuidle_muic_notifier, MUIC_NOTIFY_DEV_CPUIDLE);
+}
+late_initcall(exynos_muic_notifier_init);
+
+#endif
