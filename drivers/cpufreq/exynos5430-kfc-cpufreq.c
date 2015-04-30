@@ -78,10 +78,10 @@ static unsigned int clkdiv_cpu0_5430_CA7[CPUFREQ_LEVEL_END_CA7][7] = {
 	/* ARM L0: 2.0GHz */
 	{ 0, 0, 2, 7, 7, 7, 3 },
 
-	/* ARM L1: 1.9GMHz */
+	/* ARM L1: 1.9GHz */
 	{ 0, 0, 2, 7, 7, 7, 3 },
 
-	/* ARM L2: 1.8GMHz */
+	/* ARM L2: 1.8GHz */
 	{ 0, 0, 2, 7, 7, 7, 3 },
 
 	/* ARM L3: 1.7GHz */
@@ -90,10 +90,10 @@ static unsigned int clkdiv_cpu0_5430_CA7[CPUFREQ_LEVEL_END_CA7][7] = {
 	/* ARM L4: 1.6GHz */
 	{ 0, 0, 2, 7, 7, 7, 3 },
 
-	/* ARM L5: 1.5GMHz */
+	/* ARM L5: 1.5GHz */
 	{ 0, 0, 2, 7, 7, 7, 3 },
 
-	/* ARM L6: 1.4GMHz */
+	/* ARM L6: 1.4GHz */
 	{ 0, 0, 2, 7, 7, 7, 3 },
 
 	/* ARM L7: 1.3GHz */
@@ -105,7 +105,7 @@ static unsigned int clkdiv_cpu0_5430_CA7[CPUFREQ_LEVEL_END_CA7][7] = {
 	/* ARM L9: 1.1GHz */
 	{ 0, 0, 2, 7, 7, 7, 3 },
 
-	/* ARM L10: 1000MHz */
+	/* ARM L10: 1.0GHz */
 	{ 0, 0, 2, 7, 7, 7, 3 },
 
 	/* ARM L11: 900MHz */
@@ -142,10 +142,10 @@ static unsigned int clkdiv_cpu1_5430_CA7[CPUFREQ_LEVEL_END_CA7][2] = {
 	/* ARM L0: 2.0GHz */
 	{ 2, 7 },
 
-	/* ARM L1: 1.9GMHz */
+	/* ARM L1: 1.9GHz */
 	{ 2, 7 },
 
-	/* ARM L2: 1.8GMHz */
+	/* ARM L2: 1.8GHz */
 	{ 2, 7 },
 
 	/* ARM L3: 1.7GHz */
@@ -154,10 +154,10 @@ static unsigned int clkdiv_cpu1_5430_CA7[CPUFREQ_LEVEL_END_CA7][2] = {
 	/* ARM L4: 1.6GHz */
 	{ 2, 7 },
 
-	/* ARM L5: 1.5GMHz */
+	/* ARM L5: 1.5GHz */
 	{ 2, 7 },
 
-	/* ARM L6: 1.4GMHz */
+	/* ARM L6: 1.4GHz */
 	{ 2, 7 },
 
 	/* ARM L7: 1.3GHz */
@@ -169,7 +169,7 @@ static unsigned int clkdiv_cpu1_5430_CA7[CPUFREQ_LEVEL_END_CA7][2] = {
 	/* ARM L9: 1.1GHz */
 	{ 2, 7 },
 
-	/* ARM L10: 1000MHz */
+	/* ARM L10: 1.0GHz */
 	{ 2, 7 },
 
 	/* ARM L11: 900MHz */
@@ -229,7 +229,7 @@ static unsigned int exynos5430_kfc_pll_pms_table_CA7[CPUFREQ_LEVEL_END_CA7] = {
 	/* KPLL FOUT L9: 1.1GHz */
 	PLL2450X_PMS(550, 6, 1),
 
-	/* KPLL FOUT L10: 1000MHz */
+	/* KPLL FOUT L10: 1.0GHz */
 	PLL2450X_PMS(500, 6, 1),
 
 	/* KPLL FOUT L11: 900MHz */

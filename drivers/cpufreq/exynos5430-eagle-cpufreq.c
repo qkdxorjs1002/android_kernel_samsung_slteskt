@@ -101,10 +101,10 @@ static unsigned int clkdiv_cpu0_5430_CA15[CPUFREQ_LEVEL_END_CA15][6] = {
 	/* ARM L0: 2.5GHz */
 	{ 0, 0, 4, 7, 7, 7 },
 
-	/* ARM L1: 2.4GMHz */
+	/* ARM L1: 2.4GHz */
 	{ 0, 0, 4, 7, 7, 7 },
 
-	/* ARM L2: 2.3GMHz */
+	/* ARM L2: 2.3GHz */
 	{ 0, 0, 4, 7, 7, 7 },
 
 	/* ARM L3: 2.2GHz */
@@ -180,10 +180,10 @@ static unsigned int clkdiv_cpu1_5430_CA15[CPUFREQ_LEVEL_END_CA15][2] = {
 	/* ARM L0: 2.5GHz */
 	{ 1, 7 },
 
-	/* ARM L1: 2.4GMHz */
+	/* ARM L1: 2.4GHz */
 	{ 1, 7 },
 
-	/* ARM L2: 2.3GMHz */
+	/* ARM L2: 2.3GHz */
 	{ 1, 7 },
 
 	/* ARM L3: 2.2GHz */
