@@ -1144,11 +1144,11 @@ static int exynos_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	
 	if (!ret) {
 		if (cur == CA7) {
-			policy->min = 200000;
-			policy->max = 1500000;
+			policy->min = 300000; /* A7 Min Clock */
+			policy->max = 1500000; /* A7 Max Clock */
 		} else {
-			policy->min = 400000;
-			policy->max = 1800000;
+			policy->min = 300000; /* A15 Min Clock */
+			policy->max = 1800000; /* A15 Max Clock */
 		}
 	}
 
