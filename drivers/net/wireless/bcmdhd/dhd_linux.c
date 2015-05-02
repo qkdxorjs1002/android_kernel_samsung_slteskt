@@ -1023,11 +1023,8 @@ int power_mode = PM_MAX;
 #ifndef SUPPORT_PM2_ONLY
 				dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode,
 				                 sizeof(power_mode), TRUE, 0);
-#ifdef CONFIG_BCMDHD_WIFI_PM
-				dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode, sizeof(power_mode), TRUE, 0);
-#else
 #endif /* SUPPORT_PM2_ONLY */
-#endif
+#endif /* CONFIG_BCMDHD_WIFI_PM */
 
 				/* Enable packet filter, only allow unicast packet to send up */
 				dhd_enable_packet_filter(1, dhd);
@@ -1104,7 +1101,11 @@ int power_mode = PM_MAX;
 				power_mode = PM_FAST;
 				dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode,
 				                 sizeof(power_mode), TRUE, 0);
-#endif
+#else
+#ifndef CONFIG_BCMDHD_WIFI_PM
+				dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode,
+				                 sizeof(power_mode), TRUE, 0);
+#endif /* CONFIG_BCMDHD_WIFI_PM */
 #endif /* SUPPORT_PM2_ONLY */
 #ifdef PKT_FILTER_SUPPORT
 				/* disable pkt filter */
