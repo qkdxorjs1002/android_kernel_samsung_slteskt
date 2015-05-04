@@ -1023,9 +1023,6 @@ int power_mode = PM_MAX;
 #ifndef SUPPORT_PM2_ONLY
 				dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode,
 				                 sizeof(power_mode), TRUE, 0);
-#ifdef CONFIG_BCMDHD_WIFI_PM
-				dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode, sizeof(power_mode), TRUE, 0);
-#else
 #endif /* SUPPORT_PM2_ONLY */
 #endif
 
@@ -1100,12 +1097,17 @@ int power_mode = PM_MAX;
 					sizeof(iovbuf), TRUE, 0)) < 0)
 					DHD_ERROR(("failed to set intr_width (%d)\n", ret));
 #endif /* DYNAMIC_SWOOB_DURATION */
+
 #ifndef SUPPORT_PM2_ONLY
 				power_mode = PM_FAST;
 				dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode,
 				                 sizeof(power_mode), TRUE, 0);
 #endif
+#ifdef CONFIG_BCMDHD_WIFI_PM
+				dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&power_mode, sizeof(power_mode), TRUE, 0);
+#else
 #endif /* SUPPORT_PM2_ONLY */
+#endif
 #ifdef PKT_FILTER_SUPPORT
 				/* disable pkt filter */
 				dhd_enable_packet_filter(0, dhd);
