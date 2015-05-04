@@ -12,7 +12,6 @@
 #include <linux/gfp.h>
 #include <linux/smp.h>
 #include <linux/cpu.h>
-#include <asm/relaxed.h>
 
 #include "smpboot.h"
 
