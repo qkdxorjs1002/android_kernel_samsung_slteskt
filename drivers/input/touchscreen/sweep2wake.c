@@ -37,7 +37,6 @@
 #include <linux/earlysuspend.h>
 #endif
 
-
 /* Version, author, desc, etc */
 #define DRIVER_AUTHOR "Dennis Rassmann <showp1984@gmail.com>"
 #define DRIVER_DESCRIPTION "Sweep2wake for almost any device"
@@ -50,22 +49,22 @@
 #define LOGTAG "[sweep2wake]: "
 
 /* Tuneables */
-#define S2W_DEBUG		0
-#define S2W_DEFAULT		0
-#define S2W_PWRKEY_DUR          60
+#define S2W_DEBUG			0
+#define S2W_DEFAULT			0
+#define S2W_PWRKEY_DUR		60
 
 /* Screen size */
-#define DEFAULT_S2W_Y_MAX               1920
-#define DEFAULT_S2W_Y_LIMIT             DEFAULT_S2W_Y_MAX-130
-#define DEFAULT_S2W_X_MAX		1080
+#define DEFAULT_S2W_Y_MAX		1280
+#define DEFAULT_S2W_Y_LIMIT		DEFAULT_S2W_Y_MAX-130
+#define DEFAULT_S2W_X_MAX		720
 
 /* 0
  * |
  * |
  * |
  * |
- * 1920 - 130
- * 0<-B0-B3-B1--|--B4-B2-B5->1080
+ * 1280 - 130
+ * 0<-B0-B3-B1--|--B4-B2-B5->720
  */
 
 /* Sweep2sleep right to left */
